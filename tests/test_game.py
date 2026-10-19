@@ -134,6 +134,40 @@ class TestMoves(unittest.TestCase):
         s = from_board(Ruleset(push_own=False), board_of(A=[(0, 0)], B=[(1, 0)]))
         self.assertIn(Move(0, 0, E, True), legal_moves(s))
 
+    def test_push_off(self):
+        # B in (4,0) sul bordo est: A da (3,0) può buttarla fuori solo con push_off
+        cells = board_of(A=[(3, 0)], B=[(4, 0), (-2, 2)])
+        self.assertNotIn(Move(3, 0, E, True), legal_moves(from_board(Ruleset(), cells)))
+        s = from_board(Ruleset(push_off=True), cells)
+        self.assertIn(Move(3, 0, E, True), legal_moves(s))
+        t = apply(s, Move(3, 0, E, True))
+        self.assertEqual(t.board, {(4, 0): "A", (-2, 2): "B"})
+        self.assertIsNone(winner(t))
+
+    def test_push_off_never_own_piece(self):
+        cells = board_of(A=[(3, 0), (4, 0)], B=[(-2, 2)])
+        s = from_board(Ruleset(push_off=True), cells)
+        self.assertNotIn(Move(3, 0, E, True), legal_moves(s))
+
+    def test_push_off_home_row_wall(self):
+        # il muro di casa non è più invulnerabile: B in (1,-3) butta fuori A da (1,-4)
+        cells = board_of(A=[(0, -4), (1, -4), (2, -4)], B=[(1, -3)])
+        s = from_board(Ruleset(push_off=True), cells, to_move="B")
+        self.assertIn(Move(1, -3, NW, True), legal_moves(s))
+        t = apply(s, Move(1, -3, NW, True))
+        self.assertEqual(winner(t), "B")  # e arriva sul traguardo
+        self.assertEqual(t.reason, "goal")
+
+    def test_elimination_below_k(self):
+        cells = board_of(A=[(3, 0), (0, 0)], B=[(4, 0)])
+        t = apply(from_board(Ruleset(push_off=True), cells), Move(3, 0, E, True))
+        self.assertEqual(winner(t), "A")
+        self.assertEqual(t.reason, "elimination")
+        # con K=2 basta restare con una pedina sola per perdere
+        cells = board_of(A=[(3, 0), (0, 0)], B=[(4, 0), (-2, 2)])
+        t = apply(from_board(Ruleset(push_off=True, K=2), cells), Move(3, 0, E, True))
+        self.assertEqual(winner(t), "A")
+
     def test_pass_when_no_moves(self):
         # A nell'angolo est (3,0) con R=3: i 3 vicini sono B e dietro ognuno c'è un altro B
         s = from_board(Ruleset(R=3, N=6),
@@ -143,6 +177,66 @@ class TestMoves(unittest.TestCase):
         self.assertEqual(t.board, s.board)
         self.assertEqual(t.to_move, "B")
         self.assertIsNone(winner(t))
+
+
+class TestTwoMoves(unittest.TestCase):
+    R2 = Ruleset(moves_per_turn=2)
+
+    def test_opening_single_move(self):
+        s = new_game(self.R2)
+        self.assertEqual(s.moves_left, 1)
+        t = apply(s, legal_moves(s)[0])
+        self.assertEqual(t.to_move, "B")
+        self.assertEqual(t.moves_left, 2)
+        self.assertIsNone(t.locked)
+
+    def test_two_moves_different_pieces(self):
+        s = from_board(self.R2, board_of(A=[(0, 0), (-2, 1)], B=[(2, -2)]))
+        t = apply(s, Move(0, 0, E, False))
+        self.assertEqual((t.to_move, t.moves_left, t.locked), ("A", 1, (1, 0)))
+        self.assertFalse(any((m.q, m.r) == (1, 0) for m in legal_moves(t)))
+        u = apply(t, Move(-2, 1, E, False))
+        self.assertEqual((u.to_move, u.moves_left, u.locked), ("B", 2, None))
+
+    def test_train_push_allowed(self):
+        # la seconda pedina può spingere quella già mossa (push_own)
+        s = from_board(self.R2, board_of(A=[(0, 0), (-1, 0)], B=[(2, -2)]))
+        t = apply(s, Move(0, 0, E, False))
+        u = apply(t, Move(-1, 0, E, False))
+        self.assertEqual(u.board, {(1, 0): "A", (0, 0): "A", (2, -2): "B"})
+        t = apply(s, Move(0, 0, W, True))  # (0,0) spinge (-1,0) in (-2,0)
+        # la pedina spinta non è bloccata e può a sua volta spingere quella bloccata
+        self.assertIn(Move(-2, 0, E, True), legal_moves(t))
+
+    def test_pass_second_move(self):
+        # A ha una sola pedina: dopo la prima mossa non può più muovere, il turno passa
+        s = from_board(self.R2, board_of(A=[(0, 0)], B=[(2, -2)]))
+        t = apply(s, Move(0, 0, E, False))
+        self.assertEqual(legal_moves(t), [PASS])
+        u = apply(t, PASS)
+        self.assertEqual((u.to_move, u.moves_left), ("B", 2))
+
+    def test_win_on_first_half(self):
+        s = from_board(self.R2, board_of(A=[(0, 3), (-2, 1)], B=[(2, -2)]))
+        self.assertEqual(winner(apply(s, Move(0, 3, SE, False))), "A")
+
+    def test_ko_two_moves(self):
+        # B spinge due pedine di A; A non può rispingerle entrambe e ricreare la posizione
+        rules = Ruleset(moves_per_turn=2, ko=True)
+        cells = board_of(A=[(0, 0), (0, -2)], B=[(-1, 0), (-1, -2)])
+        s = from_board(rules, cells, to_move="B")
+        s = apply(s, Move(-1, 0, E, True))
+        s = apply(s, Move(-1, -2, E, True))
+        self.assertEqual(s.to_move, "A")
+        s = apply(s, Move(1, 0, W, True))       # la prima rispinta è permessa
+        self.assertEqual(s.board[(0, 0)], "A")
+        self.assertNotIn(Move(1, -2, W, True), legal_moves(s))  # la seconda no
+        self.assertIn(Move(1, -2, SW, False), legal_moves(s))
+        # senza ko invece si può
+        s = from_board(Ruleset(moves_per_turn=2), cells, to_move="B")
+        for m in (Move(-1, 0, E, True), Move(-1, -2, E, True), Move(1, 0, W, True)):
+            s = apply(s, m)
+        self.assertIn(Move(1, -2, W, True), legal_moves(s))
 
 
 class TestEnd(unittest.TestCase):
@@ -223,7 +317,8 @@ class TestRandomGames(unittest.TestCase):
     def test_invariants(self):
         rng = random.Random(1)
         configs = [Ruleset(), Ruleset(R=3, N=3), Ruleset(R=5, N=8, K=2),
-                   Ruleset(push_own=False, ko=True, goal_wide=True)]
+                   Ruleset(push_own=False, ko=True, goal_wide=True), Ruleset(push_off=True),
+                   Ruleset(moves_per_turn=2, ko=True)]
         for rules in configs:
             geo = geometry(rules.R, rules.goal_wide)
             for _ in range(30):
@@ -235,8 +330,9 @@ class TestRandomGames(unittest.TestCase):
                         self.assertEqual(moves, [PASS])
                     s = apply(s, rng.choice(moves))
                     pieces = list(s.board.values())
-                    self.assertEqual(pieces.count("A"), rules.N)
-                    self.assertEqual(pieces.count("B"), rules.N)
+                    if not rules.push_off:
+                        self.assertEqual(pieces.count("A"), rules.N)
+                        self.assertEqual(pieces.count("B"), rules.N)
                     self.assertTrue(set(s.board) <= geo.cells)
                 self.assertLessEqual(s.ply, rules.max_plies)
 

@@ -64,7 +64,9 @@ minimale. Le decisioni di design si prendono in base ai numeri del self-play, no
 | `K`         | 1       | 1, 2                  | pedine da portare di là per vincere    |
 | `push_own`  | True    | True, False           | si possono spingere le proprie pedine  |
 | `ko`        | False   | True, False           | vietato riportare la posizione di 2 semimosse fa |
-| `MAX_PLIES` | 200     | —                     | limite anti-partite infinite           |
+| `push_off`  | False   | True, False           | spingere fuori dal campo una pedina avversaria la elimina; chi resta con meno di K pedine perde |
+| `moves_per_turn` | 1  | 1, 2                  | 2: due mosse per turno con pedine diverse, A apre con una sola; il ko vale a fine turno |
+| `MAX_PLIES` | 200     | —                     | limite anti-partite infinite (in semimosse) |
 
 Tutti i parametri stanno in una `Ruleset` (dataclass frozen). Nessuna variante va
 implementata come fork del codice: solo come configurazione.
@@ -138,6 +140,9 @@ partite, non migliaia. Ordine degli interventi se è troppo lento:
 
 Non implementare minimax con euristica: ha lo stesso difetto del Greedy.
 
+Il test vero di profondità è la **curva a raddoppi** in `docs/curva_raddoppi.md`
+(prevale su questa sezione dove diverge), implementata in `hexpush/ladder.py`.
+
 ### Cosa i bot non possono dire
 
 Se il gioco è divertente. Possono solo escludere che sia rotto (patte, corse,
@@ -152,11 +157,17 @@ hexpush/
   board.py       # celle dell'esagono di raggio R, direzioni, vicini, bordi, posizioni iniziali
   game.py        # GameState, legal_moves(state), apply(state, move), winner(state)
   bots.py        # Random, Greedy, Turtle, Rusher, PingPong, MCTS (interfaccia: choose(state) -> move)
+  mcts.py        # MCTS su FastBoard (campo ad array, hash di Zobrist); mcts = puro, mctsd = mosse decisive + c=0.5
   simulate.py    # CLI: --R --N --K ... --games --botA --botB --seed, scrive CSV
   sweep.py       # griglia di parametri, chiama simulate, aggrega risultati
+  ladder.py      # curva a raddoppi MCTS (docs/curva_raddoppi.md), --against BOT
+  watch.py       # guarda una partita in ASCII
 tests/
   test_game.py   # mosse legali, spinte, bordo, vittoria, ripetizione
+  test_bots.py   # bot, e coerenza tra FastBoard e il motore di riferimento
 ```
+
+Self-play con `pypy3` (playout ~12x più veloci); i test girano anche con python3.
 
 Vincoli di implementazione:
 
@@ -186,6 +197,33 @@ Vincoli di implementazione:
 4. Bot patologici: ogni regola candidata si valuta contro di loro prima di adottarla.
 5. `MCTSBot` a due livelli di simulazioni per misurare la profondità. Se il forte batte
    nettamente il debole e i patologici perdono, si passa a Django.
+
+## Risultati (ottobre 2026)
+
+Dati in `results/`. Bot MCTS = `mctsd` (mosse decisive nei playout, c=0.5): il
+`mcts` puro con c=1.4 batteva il Greedy solo 63-67% e distribuiva le visite quasi
+uniformemente.
+
+1. **Regole v1 senza `ko`**: Greedy contro Greedy patta per ripetizione nel 67%
+   (ping-pong di spinte). `ko` è necessario in tutte le varianti.
+2. **v1 + `ko`** (R=4, N=5): curva a raddoppi piatta, ~125-135 Elo per raddoppio fino a
+   3200 contro 1600 (69%); A 52% tra MCTS; patte ~0. Ma il **Rusher** batte MCTS(2000)
+   (33% per MCTS) e anche Greedy e Turtle. Con più ricerca si batte: MCTS 500 / 2000 /
+   8000 / 32000 contro Rusher = 9% / 28% / 70% / 95%. La corsa è una trappola che
+   richiede molto calcolo per essere parata.
+   Perché funziona: la propria fila di casa è un muro invulnerabile (dietro c'è il
+   bordo), le pedine ferme a casa chiudono il traguardo avversario, ogni spinta
+   difensiva porta il difensore fuori dal muro, e una pedina in fila R-1 minaccia due
+   celle.
+3. **`moves_per_turn=2` + `ko`**: MCTS(2000) batte il Rusher 95% (contro 28% con una
+   mossa), Greedy 82%, Turtle 99%, PingPong 100%. Raddoppi 250-2000: ~115-155 Elo per
+   raddoppio. A 47% tra MCTS, patte 0, ~50 semimosse (25 turni), spinte 28% delle mosse.
+   Greedy contro Greedy: A 50%, patte 0. Rusher contro Rusher: A 57%.
+4. `push_off` implementato ma non ancora misurato. Rischio: una pedina in fila R-1 che
+   butta fuori un difensore dalla sua casa ne prende il posto e vince subito.
+
+Candidato attuale: **v1 + `ko` + `moves_per_turn=2`**. Da fare: protocollo a raddoppi
+completo (100-3200, 200 partite) su questa configurazione, poi gli umani.
 
 ## Domande ancora aperte (da decidere con i dati, non adesso)
 

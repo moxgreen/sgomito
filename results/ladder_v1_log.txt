@@ -1,0 +1,29 @@
+Ruleset(R=4, N=5, K=1, goal_wide=False, push_own=True, ko=True, max_plies=200)
+10 incontri, 2000 partite, 8 processi
+[   594 s] finito mctsd:3200 vs mctsd:1600 (222/2000 partite)
+[   806 s] finito mctsd:1600 vs mctsd:800 (403/2000 partite)
+[   978 s] finito mctsd:2000 vs greedy (602/2000 partite)
+[  1444 s] finito mctsd:2000 vs turtle (819/2000 partite)
+[  1617 s] finito mctsd:2000 vs rusher (1002/2000 partite)
+[  1771 s] finito mctsd:2000 vs pingpong (1211/2000 partite)
+[  1920 s] finito mctsd:800 vs mctsd:400 (1409/2000 partite)
+[  2046 s] finito mctsd:400 vs mctsd:200 (1600/2000 partite)
+[  2088 s] finito mctsd:200 vs mctsd:100 (1804/2000 partite)
+[  2110 s] finito mctsd:100 vs random (2000/2000 partite)
+
+Ruleset(R=4, N=5, K=1, goal_wide=False, push_own=True, ko=True, max_plies=200)
+
+     forte     debole    n    V    S    P   punti    Elo        IC 95% semim. s/partita quota1 indecise
+ mctsd:200  mctsd:100  200  151   49    0   75.5%   +196   +143.. +257   49.0       1.7  14.0%    77.6%
+ mctsd:400  mctsd:200  200  148   51    1   74.2%   +184   +132.. +244   42.9       5.5  15.5%    71.6%
+ mctsd:800  mctsd:400  200  135   65    0   67.5%   +127    +78.. +182   39.7       5.8  19.4%    62.9%
+mctsd:1600  mctsd:800  200  133   65    2   67.0%   +123    +74.. +177   37.2       9.2  25.1%    52.4%
+mctsd:3200 mctsd:1600  200  137   62    1   68.8%   +137    +87.. +192   36.3      22.7  31.9%    43.4%
+-- controlli
+ mctsd:100     random  200  199    1    0   99.5%   +920   +730..+1040   57.3       0.9  12.5%    84.7%
+mctsd:2000     greedy  200  164   36    0   82.0%   +263   +207.. +335   30.7       6.9  21.8%    63.3%
+mctsd:2000     turtle  200  187    0   13   96.8%   +590   +487.. +839   79.3      18.4  23.8%    50.8%
+mctsd:2000     rusher  200   66  132    2   33.5%   -119   -173..  -70   34.0       7.3  26.4%    46.1%
+mctsd:2000   pingpong  200  168   31    1   84.2%   +291   +232.. +369   30.9       5.9  22.7%    61.2%
+
+tempo totale 2110 s

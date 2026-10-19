@@ -1,0 +1,9 @@
+Ruleset(R=4, N=5, K=1, goal_wide=False, push_own=True, ko=True, push_off=False, max_plies=200)
+
+     forte     debole    n    V    S    P   punti    Elo        IC 95% semim. s/partita quota1 indecise
+ mctsd:500     rusher  100    8   90    2    9.0%   -402   -582.. -307   30.5       0.5  17.0%    61.8%
+mctsd:2000     rusher  100   28   72    0   28.0%   -164   -250..  -94   35.8       2.7  26.1%    46.2%
+mctsd:8000     rusher  100   69   28    3   70.5%   +151    +82.. +235   33.0      14.2  40.7%    33.1%
+mctsd:32000     rusher  100   94    4    2   95.0%   +512   +396.. +854   29.6      43.0  55.9%    21.7%
+
+tempo totale 758 s

@@ -10,6 +10,8 @@ class Ruleset:
     goal_wide: bool = False   # traguardo esteso alle 2 celle laterali adiacenti alla casa nemica
     push_own: bool = True     # si possono spingere le proprie pedine
     ko: bool = False          # vietato ricreare la posizione di 2 semimosse fa
+    push_off: bool = False    # si può spingere fuori dal campo una pedina avversaria: è eliminata
+    moves_per_turn: int = 1   # 2: due mosse per turno con pedine diverse (A apre con una sola)
     max_plies: int = 200      # oltre questo numero di semimosse la partita è patta
 
     def __post_init__(self):
@@ -21,5 +23,7 @@ class Ruleset:
             raise ValueError(f"N deve stare tra 1 e {cap} con R={self.R}, non {self.N}")
         if not 1 <= self.K <= self.N:
             raise ValueError(f"K deve stare tra 1 e N={self.N}, non {self.K}")
+        if self.moves_per_turn not in (1, 2):
+            raise ValueError(f"moves_per_turn deve essere 1 o 2, non {self.moves_per_turn}")
         if self.max_plies < 1:
             raise ValueError(f"max_plies deve essere >= 1, non {self.max_plies}")

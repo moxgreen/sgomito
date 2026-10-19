@@ -1,0 +1,36 @@
+##### mcts:2000 vs mcts:100 --ko
+Ruleset(R=4, N=5, K=1, goal_wide=False, push_own=True, ko=True, max_plies=200)
+
+mcts:2000 (A) vs mcts:100 (B)
+partite 100: A 92.0%  B 2.0%  patte rip. 6.0%  patte limite 0.0%
+  A sulle decise 97.9%   spinte 19.5%   passi 0.00%
+  semimosse: media 39.0 (decise 38.0)  p10 27  mediana 35  p90 60
+
+mcts:100 (A) vs mcts:2000 (B)
+partite 100: A 1.0%  B 96.0%  patte rip. 3.0%  patte limite 0.0%
+  A sulle decise 1.0%   spinte 19.9%   passi 0.00%
+  semimosse: media 41.7 (decise 41.0)  p10 24  mediana 40  p90 64
+
+punti mcts:2000: 96.2%   punti mcts:100: 3.8%
+
+200 partite in 263.2 s (1 partite/s, 8 processi)
+##### mcts:2000 vs greedy --ko
+Ruleset(R=4, N=5, K=1, goal_wide=False, push_own=True, ko=True, max_plies=200)
+
+mcts:2000 (A) vs greedy (B)
+partite 100: A 62.0%  B 37.0%  patte rip. 1.0%  patte limite 0.0%
+  A sulle decise 62.6%   spinte 45.8%   passi 0.00%
+  semimosse: media 38.7 (decise 37.9)  p10 21  mediana 34  p90 63
+
+greedy (A) vs mcts:2000 (B)
+partite 100: A 36.0%  B 64.0%  patte rip. 0.0%  patte limite 0.0%
+  A sulle decise 36.0%   spinte 45.1%   passi 0.00%
+  semimosse: media 39.9 (decise 39.9)  p10 22  mediana 36  p90 62
+
+punti mcts:2000: 63.2%   punti greedy: 36.8%
+
+200 partite in 193.7 s (1 partite/s, 8 processi)
+##### mcts:2000 vs rusher --ko
+Ruleset(R=4, N=5, K=1, goal_wide=False, push_own=True, ko=True, max_plies=200)
+/opt/homebrew/Cellar/pypy3.12/8.0.1/libexec/lib/pypy3.12/multiprocessing/resource_tracker.py:322: UserWarning: resource_tracker: There appear to be 10 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '
