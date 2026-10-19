@@ -1,0 +1,55 @@
+{% extends "play/base.html" %}
+{% block content %}
+<form method="post" action="{% url 'create' %}" class="home">
+  {% csrf_token %}
+  <p class="intro">Porta una tua pedina sulla fila di casa avversaria. Ogni turno muovi
+    due pedine diverse (chi apre ne muove una sola); puoi spingere una pedina se dietro
+    c'è una casella libera. Non si può annullare subito la spinta dell'avversario (ko).</p>
+  {% if error %}<p class="error">Impossibile creare la partita: {{ error }}.</p>{% endif %}
+
+  <fieldset>
+    <legend>Il tuo colore</legend>
+    {% for value, label in colors %}
+    <label class="choice"><input type="radio" name="color" value="{{ value }}"
+      {% if v.color == value %}checked{% endif %}>
+      {% if value == "A" %}<span class="swatch swatch-A"></span>{% elif value == "B" %}<span class="swatch swatch-B"></span>{% endif %}
+      {{ label }}</label>
+    {% endfor %}
+  </fieldset>
+
+  <div class="cards">
+    <section class="card">
+      <h2>Gioca con un amico</h2>
+      <p>Crea una stanza e manda il link a chi vuoi sfidare.</p>
+      <button type="submit" name="mode" value="amico">Crea la partita</button>
+    </section>
+    <section class="card">
+      <h2>Gioca contro il computer</h2>
+      <label>Difficoltà
+        <select name="level">
+          {% for key, name, n in levels %}
+          <option value="{{ key }}" {% if v.level == key %}selected{% endif %}>{{ name }} ({{ n }} simulazioni)</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button type="submit" name="mode" value="computer">Inizia</button>
+    </section>
+  </div>
+
+  <details class="advanced">
+    <summary>Regole avanzate (varianti)</summary>
+    <div class="grid">
+      <label>Raggio del campo R
+        <select name="R">{% for x in "345" %}<option {% if v.R|stringformat:"s" == x %}selected{% endif %}>{{ x }}</option>{% endfor %}</select>
+      </label>
+      <label>Pedine per giocatore N <input type="number" name="N" min="1" max="13" value="{{ v.N }}"></label>
+      <label>Pedine da portare al traguardo K <input type="number" name="K" min="1" max="13" value="{{ v.K }}"></label>
+      <label class="check"><input type="checkbox" name="goal_wide" {% if v.goal_wide %}checked{% endif %}>
+        Traguardo largo (anche le 2 celle laterali accanto alla casa nemica)</label>
+      <label class="check"><input type="checkbox" name="push_off" {% if v.push_off %}checked{% endif %}>
+        Spinta fuori dal campo (elimina la pedina avversaria)</label>
+    </div>
+    <p class="note">Sempre attivi: ko e due mosse per turno.</p>
+  </details>
+</form>
+{% endblock %}

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web",
+      "runtimeExecutable": "/Users/imoliner/prj/sgomito/.venv/bin/python",
+      "runtimeArgs": ["/Users/imoliner/prj/sgomito/web/manage.py", "runserver", "8000"],
+      "port": 8000
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{% load static %}<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Spinta{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'play/style.css' %}">
+</head>
+<body>
+  <header class="top"><a href="{% url 'home' %}" class="brand">⬡ Spinta</a></header>
+  <main>{% block content %}{% endblock %}</main>
+</body>
+</html>

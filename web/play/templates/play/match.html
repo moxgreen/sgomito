@@ -1,0 +1,39 @@
+{% extends "play/base.html" %}
+{% load static %}
+{% block title %}Partita {{ match.id }} — Spinta{% endblock %}
+{% block content %}
+<div id="game" class="game" data-match="{{ match.id }}">
+  <div class="board-wrap">
+    <svg id="board" role="img" aria-label="Campo di gioco"></svg>
+  </div>
+  <aside class="panel">
+    <div id="players" class="players"></div>
+    <div id="status" class="status" aria-live="polite">Connessione…</div>
+    <div id="result" class="result" hidden></div>
+    <div class="buttons">
+      <button id="undo" type="button" disabled title="Annulla la prima mossa del turno">Annulla mossa</button>
+      <button id="resign" type="button" class="secondary">Abbandona</button>
+    </div>
+    <div id="hint" class="hint" aria-live="polite"></div>
+    {% if not vs_computer %}
+    <div id="share" class="share" hidden>
+      <p>Manda questo link all'avversario:</p>
+      <div class="share-row"><input id="share-url" readonly value="{{ share_url }}">
+        <button id="copy" type="button">Copia</button></div>
+    </div>
+    {% endif %}
+    <details class="rules-box">
+      <summary>Come si gioca</summary>
+      <ul>
+        <li>Clic su una tua pedina, poi su una casella evidenziata. Oppure trascinala.</li>
+        <li>Verde: spostamento. Rosso: spinta (la freccia mostra dove finisce la pedina spinta).</li>
+        <li>Ogni turno muovi due pedine diverse; la prima mossa si può annullare finché non fai la seconda.</li>
+        <li>Barrato: mossa vietata dal ko (rifarebbe la posizione d'inizio del turno precedente).</li>
+        <li>Vince chi porta una pedina sulla fila di casa avversaria (bordo colorato in alto).</li>
+      </ul>
+      <p id="rules-summary" class="note"></p>
+    </details>
+  </aside>
+</div>
+<script type="module" src="{% static 'play/game.js' %}"></script>
+{% endblock %}

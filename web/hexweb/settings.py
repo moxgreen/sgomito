@@ -1,0 +1,50 @@
+"""Impostazioni del frontend web. Niente database: le partite stanno in memoria."""
+import os
+import sys
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+# il motore hexpush/ sta nella radice del repository, accanto a web/
+sys.path.insert(0, str(BASE_DIR.parent))
+
+SECRET_KEY = os.environ.get("HEXPUSH_SECRET_KEY", "solo-per-sviluppo-non-usare-in-produzione")
+DEBUG = os.environ.get("HEXPUSH_DEBUG", "1") == "1"
+# altri host (es. l'IP del portatile per giocare dal telefono): HEXPUSH_HOSTS=192.168.1.10
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]"] + [
+    h for h in os.environ.get("HEXPUSH_HOSTS", "").split(",") if h]
+
+INSTALLED_APPS = [
+    "daphne",  # runserver ASGI (WebSocket compresi)
+    "django.contrib.staticfiles",
+    "channels",
+    "play",
+]
+
+MIDDLEWARE = [
+    "django.middleware.security.SecurityMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+]
+
+ROOT_URLCONF = "hexweb.urls"
+ASGI_APPLICATION = "hexweb.asgi.application"
+CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
+DATABASES = {}
+
+TEMPLATES = [{
+    "BACKEND": "django.template.backends.django.DjangoTemplates",
+    "DIRS": [],
+    "APP_DIRS": True,
+    "OPTIONS": {"context_processors": ["django.template.context_processors.request"]},
+}]
+
+LANGUAGE_CODE = "it"
+TIME_ZONE = "Europe/Rome"
+USE_I18N = False
+USE_TZ = True
+STATIC_URL = "static/"
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# pausa minima (secondi) prima di ogni mossa del computer, per vederle una alla volta
+HEXPUSH_BOT_DELAY = float(os.environ.get("HEXPUSH_BOT_DELAY", "0.7"))
