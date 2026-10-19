@@ -222,8 +222,14 @@ uniformemente.
 4. `push_off` implementato ma non ancora misurato. Rischio: una pedina in fila R-1 che
    butta fuori un difensore dalla sua casa ne prende il posto e vince subito.
 
-Candidato attuale: **v1 + `ko` + `moves_per_turn=2`**. Da fare: protocollo a raddoppi
-completo (100-3200, 200 partite) su questa configurazione, poi gli umani.
+5. **Protocollo completo su v1 + `ko` + `moves_per_turn=2`** (`results/ladder_mpt2_*`,
+   200 partite per incontro): Elo per raddoppio 117 / 119 / 108 / 70 / 143 da 100-200 a
+   1600-3200 (3200 contro 1600 vince il 69.5%). MCTS(2000) contro Greedy 80%, Turtle
+   99.5%, Rusher 94%, PingPong 100%. Tra MCTS: A 53.8% (±3.1), patte 0.1%, ~50-60
+   semimosse, spinte 27% delle mosse. Tutte le soglie superate.
+
+Candidato attuale: **v1 + `ko` + `moves_per_turn=2`**. Secondo il protocollo si può
+passare agli umani e a Django. Da tenere d'occhio: leggero vantaggio di A (53.8%).
 
 ## Domande ancora aperte (da decidere con i dati, non adesso)
 

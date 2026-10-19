@@ -1,0 +1,29 @@
+Ruleset(R=4, N=5, K=1, goal_wide=False, push_own=True, ko=True, push_off=False, moves_per_turn=2, max_plies=200)
+10 incontri, 2000 partite, 8 processi
+[   217 s] finito mctsd:3200 vs mctsd:1600 (202/2000 partite)
+[   324 s] finito mctsd:1600 vs mctsd:800 (402/2000 partite)
+[   394 s] finito mctsd:2000 vs greedy (601/2000 partite)
+[   501 s] finito mctsd:2000 vs turtle (801/2000 partite)
+[   575 s] finito mctsd:2000 vs rusher (1000/2000 partite)
+[   668 s] finito mctsd:2000 vs pingpong (1203/2000 partite)
+[   727 s] finito mctsd:800 vs mctsd:400 (1403/2000 partite)
+[   761 s] finito mctsd:400 vs mctsd:200 (1606/2000 partite)
+[   780 s] finito mctsd:200 vs mctsd:100 (1804/2000 partite)
+[   788 s] finito mctsd:100 vs random (2000/2000 partite)
+
+Ruleset(R=4, N=5, K=1, goal_wide=False, push_own=True, ko=True, push_off=False, moves_per_turn=2, max_plies=200)
+
+     forte     debole    n    V    S    P   punti    Elo        IC 95% semim. s/partita quota1 indecise
+ mctsd:200  mctsd:100  200  132   67    1   66.2%   +117    +68.. +171   59.5       0.8  14.8%    76.1%
+ mctsd:400  mctsd:200  200  133   67    0   66.5%   +119    +70.. +173   57.0       1.3  17.3%    70.2%
+ mctsd:800  mctsd:400  200  130   70    0   65.0%   +108    +59.. +161   49.9       2.4  19.8%    65.0%
+mctsd:1600  mctsd:800  200  120   80    0   60.0%    +70    +22.. +121   50.3       4.3  23.4%    55.8%
+mctsd:3200 mctsd:1600  200  139   61    0   69.5%   +143    +93.. +199   51.6       8.6  28.3%    49.1%
+-- controlli
+ mctsd:100     random  200  199    1    0   99.5%   +920   +730..+1040   62.2       0.3  13.5%    81.9%
+mctsd:2000     greedy  200  159   40    1   79.8%   +238   +183.. +306   40.2       2.7  21.3%    62.9%
+mctsd:2000     turtle  200  198    0    2   99.5%   +920   +730..+1040   69.3       4.4  18.6%    65.2%
+mctsd:2000     rusher  200  188   12    0   94.0%   +478   +396.. +622   35.1       2.9  22.2%    57.4%
+mctsd:2000   pingpong  200  200    0    0  100.0%  +1040  +1040..+1040   41.5       3.7  18.1%    65.0%
+
+tempo totale 788 s
