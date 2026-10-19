@@ -6,6 +6,9 @@ Django + Channels (daphne). Specifica in `docs/frontend.md`. Le regole stanno so
 
 ## Avvio in locale
 
+Scorciatoie nel `Makefile` della radice: `make venv`, `make run`, `make run-lan`,
+`make test` (`make help` per l'elenco). A mano:
+
 Dalla radice del repository, una volta sola:
 
 ```bash
