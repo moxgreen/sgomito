@@ -125,7 +125,9 @@ nel browser.
 - `cPuct`, `fpu` e `priorTemp` sono tarati solo grossolanamente (40 partite per valore).
 - Nessun livello del sito usa ancora il prior: `prior` è spento in `computer.js` e
   `bot-worker.js`; decidere i livelli e misurare i tempi nel browser e sui telefoni.
-- Il riuso dell'albero (`keep`, commit `5e82521` di main) va provato insieme al prior.
+- Il riuso dell'albero (`keep`, commit `5e82521` di main) funziona anche col prior
+  (test in `TestJsPrior.test_tree_reuse`; un albero UCT non si riusa in una ricerca col
+  prior né viceversa), ma il guadagno dei due insieme non è misurato.
 
 ## Come rifare tutto
 
