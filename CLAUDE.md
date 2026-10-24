@@ -56,6 +56,8 @@ minimale. Le decisioni di design si prendono in base ai numeri del self-play, no
   verso `b` (direzione opposta) che rimanderebbe in `a` una pedina avversaria. Spingere le
   proprie pedine non crea divieti. Con una mossa per turno è già coperta dal `ko`; con
   `moves_per_turn=2` no, perché il `ko` guarda la posizione intera a fine turno.
+  È attiva di default (ottobre 2026); nel self-play si toglie con `--pushback`. I risultati
+  1-5 qui sotto sono stati misurati senza.
 - Vantaggio del primo giocatore: % di vittorie di A sulle partite **decise**; il tasso di
   patta si riporta a parte.
 

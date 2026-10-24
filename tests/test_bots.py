@@ -118,7 +118,7 @@ class TestFastBoard(unittest.TestCase):
                         self.assertEqual(value, expected)
                         reasons.add(ref.reason)
                     s = apply(s, rng.choice(legal_moves(s)))
-        self.assertTrue({"goal", "repetition", "max_plies", "elimination"} <= reasons)
+        self.assertLessEqual({"goal", "repetition", "max_plies", "elimination"}, reasons)
 
     def test_fast_geometry(self):
         for R in (3, 4, 5):

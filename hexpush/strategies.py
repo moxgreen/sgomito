@@ -446,7 +446,7 @@ def main():
             f" semimosse medie {sum(r['semimosse'] for r in g) / len(g):.0f}")
     say("", "  quota di ciascun gruppo per corpus (e vittorie in quel gruppo):")
     say("  corpus          " + "".join(f"   gruppo {j:<8d}" for j in range(k))
-        + "  gruppi effettivi")
+        + "  gruppi effettivi, dispersione (varianza media per caratteristica)")
     for label, *_ in data:
         g = [r for r in rows if r["corpus"] == label]
         cells, cnt = [], Counter(r["gruppo"] for r in g)
@@ -455,7 +455,12 @@ def main():
             wr = f"{sum(r['vince'] for r in m) / len(m):.0%}" if m else "-"
             cells.append(f"   {len(m) / len(g):5.1%} ({wr:>4s}) ")
         _, eff, _ = entropy_stats(r["gruppo"] for r in g)
-        say(f"  {label:16s}" + "".join(cells) + f"  {eff:5.2f}")
+        # varianza totale nello spazio standardizzato (14+ dimensioni): 1 per dimensione
+        # nei corpus principali messi insieme
+        Z = [zs(r) for r in g]
+        mz = [sum(col) / len(Z) for col in zip(*Z)]
+        spread = sum(dist2(z, mz) for z in Z) / len(Z) / len(NAMES)
+        say(f"  {label:16s}" + "".join(cells) + f"  {eff:5.2f}   dispersione {spread:.2f}")
     say("", "  incontri tra stili (corpus principali): A vince %, partite")
     say("  A \\ B     " + "".join(f"  gruppo {j:<5d}" for j in range(k)))
     pairs = defaultdict(list)

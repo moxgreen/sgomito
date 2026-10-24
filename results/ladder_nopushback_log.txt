@@ -1,0 +1,2 @@
+Ruleset(R=4, N=5, K=1, goal_wide=False, push_own=True, ko=True, no_pushback=True, push_off=False, moves_per_turn=2, max_plies=200)
+12 incontri, 2400 partite, 8 processi
