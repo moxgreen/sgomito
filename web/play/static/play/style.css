@@ -193,6 +193,19 @@ select, input[type=number], input[readonly] {
 .share-row input { flex: 1; min-width: 0; }
 .rules-box summary { cursor: pointer; color: var(--muted); }
 .rules-box ul { padding-left: 18px; font-size: .92rem; }
+.rules-home { margin: 0 0 1em; }
+.rules-home[open] { padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+
+/* --- come si gioca --- */
+
+.howto { font-size: .92rem; }
+.howto p { margin: .5em 0; }
+.howto h3 { font-size: 1rem; margin: 1.1em 0 .3em; }
+.howto-examples { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
+.howto figure { margin: 0; }
+.howto img { display: block; width: 100%; max-width: 299px; height: auto; margin: 0 auto 6px; }
+.howto figcaption { color: var(--muted); }
+.howto figcaption b { color: var(--text); }
 
 /* --- campo SVG --- */
 

@@ -1,0 +1,199 @@
+"""Coerenza del motore JavaScript del browser (web/play/static/play/mcts.js) con quello di
+riferimento: geometria, mosse legali, vittorie immediate, ko, no_pushback, ripetizioni e
+limite di semimosse come li conta l'albero, e ricerca che sceglie mosse sensate.
+
+I casi si preparano qui con game.py e li controlla tests/js/check_engine.mjs. Serve node
+(almeno la versione 22); senza, il test si salta e il resto resta solo stdlib.
+"""
+import dataclasses
+import json
+import random
+import shutil
+import subprocess
+import unittest
+from pathlib import Path
+
+from hexpush.board import geometry
+from hexpush.bots import winning_replies
+from hexpush.game import PASS, apply, from_board, immediate_outcomes, legal_moves, new_game
+from hexpush.mcts import POLICIES, MCTSDecisiveBot, TimePolicy
+from hexpush.rules import Ruleset
+from hexpush.serialize import cell_list, key_to_list, search_state_to_dict
+
+from .test_bots import CONFIGS
+
+ROOT = Path(__file__).resolve().parent.parent
+SCRIPT = ROOT / "tests" / "js" / "check_engine.mjs"
+NODE = shutil.which("node")
+
+# come test_tree_bookkeeping in test_bots.py: partite corte, per arrivare anche alle
+# patte per ripetizione e per limite di semimosse
+SHORT = [Ruleset(R=3, N=2, max_plies=60), Ruleset(R=3, N=2, ko=True, max_plies=60),
+         Ruleset(R=4, N=3, push_own=False, max_plies=40),
+         Ruleset(R=3, N=3, push_off=True, max_plies=60),
+         Ruleset(R=3, N=2, moves_per_turn=2, max_plies=60),
+         Ruleset(R=3, N=3, moves_per_turn=2, ko=True, no_pushback=True, max_plies=60),
+         # una pedina sola si ripete spesso; con K = N una pedina buttata fuori elimina
+         Ruleset(R=3, N=1, max_plies=80),
+         Ruleset(R=3, N=2, K=2, push_off=True, moves_per_turn=2, ko=True, max_plies=80)]
+CANDIDATE = Ruleset(ko=True, no_pushback=True, moves_per_turn=2)  # quella del sito
+
+
+def node_version():
+    if NODE is None:
+        return 0
+    out = subprocess.run([NODE, "--version"], capture_output=True, text=True).stdout
+    return int(out.strip().lstrip("v").split(".")[0])
+
+
+def run_node(cases):
+    proc = subprocess.run([NODE, str(SCRIPT)], input=json.dumps(cases), capture_output=True,
+                          text=True, timeout=600)
+    if proc.returncode != 0:
+        raise AssertionError(f"node è uscito con {proc.returncode}:\n{proc.stderr}")
+    return json.loads(proc.stdout)
+
+
+def mv(m):
+    return [m.q, m.r, m.d]
+
+
+def game_case(rules, rng, label, snapshot_every=9):
+    """Partita casuale con tutto ciò che il JS deve ritrovare a ogni semimossa."""
+    s = new_game(rules)
+    case = {"kind": "game", "label": label, "start": search_state_to_dict(s), "steps": []}
+    while s.result is None:
+        moves = legal_moves(s)
+        wins = [m for m, o in zip(moves, immediate_outcomes(s, moves)) if o == 1]
+        move = rng.choice(moves)
+        s = apply(s, move)
+        board, to_move, locked, moves_left = key_to_list(s.key)
+        step = {"legal": [[m.q, m.r, m.d, m.push] for m in moves if m is not PASS],
+                "wins": [mv(m) for m in wins],
+                "move": None if move is PASS else mv(move),
+                "result": s.result, "board": board, "to_move": to_move,
+                "moves_left": moves_left, "locked": locked}
+        if s.result is None and len(case["steps"]) % snapshot_every == 0:
+            step["state"] = search_state_to_dict(s)
+        case["steps"].append(step)
+    return case
+
+
+def search_case(s, ok, label, n_sim=300, seed=0):
+    return {"kind": "search", "label": label, "state": search_state_to_dict(s),
+            "ok": [mv(m) for m in ok], "n_sim": n_sim, "seed": seed}
+
+
+@unittest.skipIf(node_version() < 22, "serve node >= 22 per il motore JavaScript")
+class TestJsEngine(unittest.TestCase):
+    def assert_node_ok(self, cases):
+        out = run_node(cases)
+        self.assertEqual(out["errors"], [])
+        self.assertGreater(out["checked"], 0)
+
+    def test_geometry(self):
+        cases = []
+        for R in (3, 4, 5):
+            for wide in (False, True):
+                geo = geometry(R, wide)
+                cases.append({"kind": "geometry", "R": R, "goal_wide": wide,
+                              "cells": cell_list(geo.cells),
+                              "goal": {p: cell_list(cs) for p, cs in geo.goal.items()}})
+        self.assert_node_ok(cases)
+
+    def test_same_rules_as_reference(self):
+        rng = random.Random(7)
+        cases = [game_case(rules, rng, f"{rules} #{i}")
+                 for rules in CONFIGS for i in range(6)]
+        self.assert_node_ok(cases)
+
+    def test_tree_bookkeeping(self):
+        """Ripetizioni e limite di semimosse: tutti gli esiti devono comparire."""
+        rng = random.Random(5)
+        cases, reasons = [], set()
+        for rules in SHORT:
+            for i in range(25):
+                case = game_case(rules, rng, f"{rules} #{i}", snapshot_every=4)
+                cases.append(case)
+                s = new_game(rules)
+                for st in case["steps"]:
+                    s = apply(s, PASS if st["move"] is None else next(
+                        m for m in legal_moves(s) if m is not PASS and mv(m) == st["move"]))
+                reasons.add(s.reason)
+        self.assertTrue({"goal", "repetition", "max_plies", "elimination"} <= reasons)
+        self.assert_node_ok(cases)
+
+    def test_search(self):
+        cases = []
+        # vittoria immediata
+        s = from_board(Ruleset(), {(0, 3): "A", (-3, 0): "A", (0, -1): "B", (1, -1): "B"})
+        moves = legal_moves(s)
+        wins = [m for m, o in zip(moves, immediate_outcomes(s, moves)) if o == 1]
+        cases.append(search_case(s, wins, "vittoria immediata"))
+        # B in (0,-3) minaccia (1,-4); A in (0,-4) deve rispingerla
+        s = from_board(Ruleset(), {(0, -4): "A", (2, 1): "A", (0, -3): "B", (-2, 3): "B"})
+        safe = [m for m in legal_moves(s) if winning_replies(apply(s, m)) == 0]
+        for seed in range(3):
+            cases.append(search_case(s, safe, "difesa", n_sim=500, seed=seed))
+        # posizioni qualsiasi con le regole del sito: una mossa legale, a metà turno compreso
+        rng = random.Random(2)
+        s = new_game(CANDIDATE)
+        while s.result is None and s.ply < 40:
+            if s.ply % 3 == 0:
+                cases.append(search_case(s, legal_moves(s), f"partita ply {s.ply}", n_sim=200,
+                                         seed=s.ply))
+            s = apply(s, rng.choice(legal_moves(s)))
+        self.assert_node_ok(cases)
+
+    def test_time_policy(self):
+        """Stesse decisioni di TimePolicy.stop, su statistiche vere (prese a metà di
+        ricerche reali) e inventate, comprese parità di visite e di valori."""
+        rng = random.Random(9)
+        policies = list(POLICIES.values()) + [TimePolicy(early=0.3, extend=0.8, min_factor=0.1,
+                                                         max_factor=2.0)]
+        snapshots = []
+        s = new_game(CANDIDATE)
+        while s.result is None and s.ply < 30:
+            bot = MCTSDecisiveBot(random.Random(s.ply), 1000, policy=_Recorder(snapshots))
+            s = apply(s, bot.choose(s))
+        for _ in range(300):
+            n = rng.randint(1, 6)
+            stats = [(v, rng.choice([0.0, 0.5, 1.0, v / 2, v * rng.random()]))
+                     for v in (rng.randint(0, 50) for _ in range(n))]
+            snapshots.append((rng.choice([0, 63, 127, 500, 1000, 2000]), stats))
+        tests = []
+        for done, stats in snapshots:
+            for policy in policies:
+                budget = rng.choice([1000, 777.5, 2000])
+                tests.append({"policy": dataclasses.asdict(policy), "done": done,
+                              "budget": budget, "stats": stats,
+                              "stop": policy.stop(done, budget, stats)})
+        self.assertTrue(any(t["stop"] for t in tests) and not all(t["stop"] for t in tests))
+        cases = [{"kind": "policy", "tests": tests}]
+        # ricerche vere con le politiche: simulazioni nei limiti
+        s = new_game(CANDIDATE)
+        rng = random.Random(4)
+        for _ in range(12):
+            s = apply(s, rng.choice(legal_moves(s)))
+        for name, policy in POLICIES.items():
+            hi = policy.max_factor * 1000 if policy.extend else 1000
+            case = search_case(s, legal_moves(s), f"politica {name}", n_sim=1000)
+            case.update(policy=dataclasses.asdict(policy), sims=[policy.min_factor * 1000, hi])
+            cases.append(case)
+        self.assert_node_ok(cases)
+
+
+class _Recorder(TimePolicy):
+    """Politica che non ferma mai la ricerca e ne annota le statistiche."""
+
+    def __init__(self, out):
+        super().__init__()
+        object.__setattr__(self, "out", out)
+
+    def stop(self, done, budget, stats):
+        self.out.append((done, list(stats)))
+        return False
+
+
+if __name__ == "__main__":
+    unittest.main()

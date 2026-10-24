@@ -10,7 +10,6 @@ from django.conf import settings
 from django.test import TestCase, TransactionTestCase, override_settings
 
 from hexpush.game import from_board, legal_moves
-from hexpush.parallel import ParallelMCTSBot
 from hexpush.rules import Ruleset
 from hexweb.asgi import application
 
@@ -66,6 +65,21 @@ async def join(match_id, pid):
 
 def move_msg(m):
     return {"type": "move", "q": m["q"], "r": m["r"], "d": m["d"]}
+
+
+def bot_msg(st, m=None):
+    """Risposta del browser alla richiesta "bot": la prima mossa legale del computer."""
+    m = m or st["legal"][0]
+    return {"type": "bot_move", "ply": st["bot"]["ply"], "q": m["q"], "r": m["r"], "d": m["d"]}
+
+
+async def play_bot(comm, st, n):
+    """Fa la parte del browser per n mosse del computer; restituisce l'ultimo stato."""
+    for _ in range(n):
+        ply = st["bot"]["ply"]
+        await comm.send_json_to(bot_msg(st))
+        st = await receive_until(comm, is_state(ply=ply + 1))
+    return st
 
 
 adb = database_sync_to_async
@@ -155,6 +169,9 @@ class ConsumerTests(TransactionTestCase):
         self.assertEqual((await receive_until(b, is_error))["message"], "Non è il tuo turno.")
         await c.send_json_to(move_msg(sa["legal"][0]))
         self.assertIn("Stai guardando", (await receive_until(c, is_error))["message"])
+        # tra due umani non c'è nessun computer di cui mandare le mosse
+        await a.send_json_to(dict(move_msg(sa["legal"][0]), type="bot_move", ply=0))
+        self.assertIn("contro il computer", (await receive_until(a, is_error))["message"])
         self.assertEqual(match.state.ply, 0)
         for comm in (a, b, c):
             await comm.disconnect()
@@ -262,10 +279,16 @@ class ConsumerTests(TransactionTestCase):
         self.assertEqual(match.seats["B"], BOT)
         a, sa = await join(match.id, "p1")
         self.assertEqual(sa["players"]["B"]["name"], "computer (Facile)")
+        self.assertNotIn("bot", sa)
         await a.send_json_to(move_msg(sa["legal"][0]))
-        await receive_until(a, is_state(ply=1, thinking=True))
-        st = await receive_until(a, is_state(ply=3))
+        st = await receive_until(a, is_state(ply=1, thinking=True))
+        req = st["bot"]
+        self.assertEqual((req["ply"], req["n_sim"], req["time_limit"], req["workers"]),
+                         (1, 200, None, 1))
+        self.assertEqual((req["search"]["to_move"], len(req["search"]["history"])), ("B", 2))
+        st = await play_bot(a, st, 2)
         self.assertEqual((st["to_move"], st["thinking"]), ("A", False))
+        self.assertNotIn("bot", st)
         self.assertEqual([m["player"] for m in st["last_turn"]], ["B", "B"])
         game = await adb(Game.objects.get)(pk=match.id)
         self.assertEqual((game.plies, game.bot_side, game.mode), (3, "B", "computer"))
@@ -277,11 +300,42 @@ class ConsumerTests(TransactionTestCase):
 
     async def test_bot_opens_when_it_is_first(self):
         match = await adb(make_match)("B", "facile")
-        b, _ = await join(match.id, "p1")
-        st = await receive_until(b, is_state(ply=1))
+        b, st = await join(match.id, "p1")
+        self.assertEqual((st["you"], st["thinking"], st["bot"]["ply"]), ("B", True, 0))
+        # chi chiude la pagina (o il server che riparte) ritrova la richiesta
+        await b.disconnect()
+        MATCHES.clear()
+        b, st = await join(match.id, "p1")
+        self.assertEqual(st["bot"]["ply"], 0)
+        st = await play_bot(b, st, 1)
         self.assertEqual((st["to_move"], st["thinking"], st["you"]), ("B", False, "B"))
         self.assertTrue(st["legal"])
         await b.disconnect()
+
+    async def test_bot_move_checks(self):
+        match = await adb(make_match)("B", "facile")
+        b, st = await join(match.id, "p1")
+        c, sc = await join(match.id, "p3")
+        self.assertNotIn("bot", sc)                       # chi guarda non calcola
+        msg = bot_msg(st)
+        await c.send_json_to(msg)
+        self.assertIn("contro il computer", (await receive_until(c, is_error))["message"])
+        await b.send_json_to(dict(msg, q=0, r=-4, d=NW))  # pedina del computer contro il muro
+        self.assertEqual((await receive_until(b, is_error))["message"], "Mossa non valida.")
+        await b.send_json_to(dict(msg, ply="x"))
+        self.assertEqual((await receive_until(b, is_error))["message"], "Mossa malformata.")
+        await b.send_json_to(msg)
+        st = await receive_until(b, is_state(ply=1))
+        self.assertNotIn("bot", st)
+        # la stessa risposta da un'altra scheda arriva in ritardo: ignorata senza errori
+        await b.send_json_to(msg)
+        await b.send_json_to(dict(msg, ply=1))            # ora tocca all'umano
+        self.assertEqual((await receive_until(b, is_error))["message"], "Non tocca al computer.")
+        self.assertEqual(match.state.ply, 1)
+        game = await adb(Game.objects.get)(pk=match.id)
+        self.assertEqual(game.moves[0][:4], ["A", msg["q"], msg["r"], msg["d"]])
+        for comm in (b, c):
+            await comm.disconnect()
 
     async def test_full_game_between_two_browsers(self):
         match, a, sa, b, _ = await self.two_players()
@@ -366,7 +420,7 @@ class ViewTests(TestCase):
         self.assertEqual(resp.status_code, 302)
         match = MATCHES[resp.url.rstrip("/").split("/")[-1]]
         self.assertEqual(match.seats["B"], BOT)
-        self.assertEqual(match.bot.n_sim, 12000)
+        self.assertEqual(match.bot_request()["n_sim"], 12000)
         self.assertEqual((match.rules.R, match.rules.N, match.rules.K, match.rules.goal_wide),
                          (5, 6, 2, True))
         self.assertEqual(Game.objects.get(pk=match.id).bot_side, "B")
@@ -385,8 +439,9 @@ class ViewTests(TestCase):
         resp = self.client.post("/nuova/", {"mode": "computer", "color": "A", "level": "campione",
                                             "name": "Ada"})
         match = MATCHES[resp.url.rstrip("/").split("/")[-1]]
-        self.assertIsInstance(match.bot, ParallelMCTSBot)
-        self.assertEqual(match.bot.time_limit, settings.HEXPUSH_CHAMPION_SECONDS)
+        req = match.bot_request()
+        self.assertEqual((req["workers"], req["time_limit"]),
+                         ("auto", settings.HEXPUSH_CHAMPION_SECONDS))
         self.assertContains(self.client.get("/"), "Campione (")
 
     def test_unknown_level(self):

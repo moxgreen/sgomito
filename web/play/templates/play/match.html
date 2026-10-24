@@ -25,15 +25,8 @@
     {% endif %}
     <details class="rules-box">
       <summary>Come si gioca</summary>
-      <ul>
-        <li>Clic su una tua pedina, poi su una casella evidenziata. Oppure trascinala.</li>
-        <li>Verde: spostamento. Rosso: spinta (la freccia mostra dove finisce la pedina spinta).</li>
-        <li>Ogni turno muovi due pedine diverse; la prima mossa si può annullare finché non fai la seconda.</li>
-        <li>Barrato: mossa vietata. Una pedina appena spinta non può rispingere indietro chi l'ha
-          spinta; il ko vieta di rifare la posizione d'inizio del turno precedente.</li>
-        <li>Vince chi porta una pedina sulla fila di casa avversaria (bordo colorato in alto).</li>
-      </ul>
       <p id="rules-summary" class="note"></p>
+      {% include "play/rules.html" %}
     </details>
   </aside>
 </div>

@@ -78,15 +78,20 @@ senza conoscere la geometria delle regole.
 
 ## Contro il computer
 
-- Bot `mctsd` con il numero di simulazioni come difficoltà, per esempio:
-  Facile 200, Medio 1000, Difficile 4000, Esperto 16000 (da tarare sui tempi reali
-  del server; con CPython il nuovo albero fa ~0.1-0.4 s per 1000 simulazioni).
-- Livello Campione: `ParallelMCTSBot` (`hexpush/parallel.py`), alberi `mctsd`
-  indipendenti in processi pypy3 paralleli con un limite di tempo per mossa
-  (`HEXPUSH_CHAMPION_SECONDS`); il padre somma le visite delle mosse alla radice.
-- Il bot calcola fuori dal ciclo degli eventi (`asyncio.to_thread` o un worker); nel
-  frattempo lo stato ha `"thinking": true` e la pagina mostra "sta pensando".
-- Le due mosse del bot vengono mostrate una alla volta, con una breve pausa.
+- Bot `mctsd` con il numero di simulazioni come difficoltà: Facile 200, Medio 1000,
+  Difficile 4000, Esperto 12000.
+- Livello Campione: alberi `mctsd` indipendenti, uno per ogni due core logici, con un
+  limite di tempo per mossa (`HEXPUSH_CHAMPION_SECONDS`). Le visite delle mosse alla
+  radice si sommano come in `ParallelMCTSBot` (`hexpush/parallel.py`).
+- Il bot calcola **nel browser** del giocatore umano, in Web Worker
+  (`web/play/static/play/mcts.js`, porting di `hexpush/mcts.py`). Quando tocca al
+  computer, lo stato di quel giocatore ha `"thinking": true` e la richiesta
+  `"bot": {"ply", "n_sim", "time_limit", "workers", "delay", "search"}`; `search` è
+  `serialize.search_state_to_dict`. Il browser risponde
+  `{"type": "bot_move", "ply", "q", "r", "d"}`. Il server la valida come le mosse
+  umane; una risposta con un `ply` superato si ignora. Chi guarda non riceve `bot`.
+- Le due mosse del bot vengono mostrate una alla volta: il browser aspetta almeno
+  `delay` secondi prima di mandarle.
 
 ## Test
 

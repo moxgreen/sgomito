@@ -10,7 +10,7 @@ class Ruleset:
     goal_wide: bool = False   # traguardo esteso alle 2 celle laterali adiacenti alla casa nemica
     push_own: bool = True     # si possono spingere le proprie pedine
     ko: bool = False          # vietato ricreare la posizione di 2 semimosse fa
-    no_pushback: bool = False # vietato rifare al contrario una spinta subita nell'ultimo turno
+    no_pushback: bool = True  # vietato rifare al contrario una spinta subita nell'ultimo turno
     push_off: bool = False    # si può spingere fuori dal campo una pedina avversaria: è eliminata
     moves_per_turn: int = 1   # 2: due mosse per turno con pedine diverse (A apre con una sola)
     max_plies: int = 200      # oltre questo numero di semimosse la partita è patta

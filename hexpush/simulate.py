@@ -109,7 +109,7 @@ def format_summary(s):
 
 def rules_from_args(args):
     return Ruleset(R=args.R, N=args.N, K=args.K, goal_wide=args.goal_wide,
-                   push_own=not args.no_push_own, ko=args.ko, no_pushback=args.no_pushback,
+                   push_own=not args.no_push_own, ko=args.ko, no_pushback=not args.pushback,
                    push_off=args.push_off, moves_per_turn=args.moves_per_turn,
                    max_plies=args.max_plies)
 
@@ -122,8 +122,9 @@ def add_rules_args(ap):
     ap.add_argument("--goal-wide", action="store_true")
     ap.add_argument("--no-push-own", action="store_true")
     ap.add_argument("--ko", action="store_true")
-    ap.add_argument("--no-pushback", action="store_true",
-                    help="vietato rifare al contrario una spinta subita nell'ultimo turno")
+    ap.add_argument("--pushback", action="store_true",
+                    help="toglie no_pushback (di default è vietato rifare al contrario una "
+                         "spinta subita nell'ultimo turno)")
     ap.add_argument("--push-off", action="store_true",
                     help="spingere fuori dal campo una pedina avversaria la elimina")
     ap.add_argument("--moves-per-turn", type=int, default=d.moves_per_turn,

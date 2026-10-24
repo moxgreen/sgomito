@@ -3,6 +3,8 @@
 Il browser non conosce le regole: riceve le mosse legali già con la cella d'arrivo
 (`to`) e quella dove finisce la pedina spinta (`pushed_to`, None oppure "off" se esce
 dal campo con push_off), le mosse vietate dal ko o da no_pushback, le case e i traguardi.
+Per la partita contro il computer riceve anche lo stato completo per la ricerca
+(search_state_to_dict), perché la mossa del computer si calcola nel browser.
 Solo stdlib: hexpush resta senza dipendenze.
 """
 import dataclasses
@@ -90,4 +92,31 @@ def state_to_dict(state):
         else move_to_dict(geo, state.last_move),
         "result": state.result,
         "reason": state.reason,
+    }
+
+
+def key_to_list(key):
+    """Chiave di game.position_key in JSON: [celle [[q, r, p], ...], to_move, locked
+    ([q, r] o None), moves_left]."""
+    cells, to_move, locked, moves_left = key
+    return [[[q, r, p] for (q, r), p in sorted(cells, key=lambda it: (it[0][1], it[0][0]))],
+            to_move, None if locked is None else list(locked), moves_left]
+
+
+def search_state_to_dict(state):
+    """Stato per la ricerca del computer nel browser (web/play/static/play/mcts.js): ciò
+    che legge mcts.FastBoard, più la storia delle posizioni per le ripetizioni. Delle
+    posizioni d'inizio turno servono solo le ultime due (il ko)."""
+    board, to_move, locked, moves_left = key_to_list(state.key)
+    return {
+        "rules": dataclasses.asdict(state.rules),
+        "board": board,
+        "to_move": to_move,
+        "ply": state.ply,
+        "moves_left": moves_left,
+        "locked": locked,
+        "turn_keys": [key_to_list(k) for k in state.turn_keys[-2:]],
+        "turn_pushes": [list(p) for p in state.turn_pushes],
+        "banned": [list(p) for p in state.banned],
+        "history": [key_to_list(k) for k in state.history],
     }

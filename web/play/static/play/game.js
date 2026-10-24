@@ -1,5 +1,7 @@
 // Pagina della partita. Nessuna regola qui: il server manda lo stato completo con le
 // mosse legali (già con `to` e `pushed_to`); il browser disegna e sceglie tra quelle.
+// Contro il computer è il browser a calcolare le mosse del computer (computer.js): lo
+// stato contiene la richiesta `bot` e la risposta torna al server, che la valida.
 
 const SVGNS = "http://www.w3.org/2000/svg";
 const HEX = 40;                 // raggio di una cella, in unità SVG
@@ -41,6 +43,10 @@ let retry = 0;
 let hintTimer = null;
 let ratingShown = false;  // il dialogo del giudizio si apre da solo una volta
 let stars = 0;
+let botPly = null;        // semimossa a cui il computer sta già rispondendo
+// stessa versione dei file statici (?v=...) anche per i moduli caricati da qui
+const computer = import(`./computer.js${new URL(import.meta.url).search}`)
+  .then((m) => new m.Computer());
 
 // --- geometria del disegno -----------------------------------------------------------
 
@@ -288,6 +294,7 @@ function onState(st) {
   const samePosition = prev && prev.ply === st.ply && prev.to_move === st.to_move &&
     prev.result === st.result && prev.thinking === st.thinking;
   S = st;
+  if (S.bot) playComputer(S.bot);
   if (samePosition && press) {
     // cambia solo chi è collegato: non si interrompe un trascinamento
     updatePanel();
@@ -315,6 +322,25 @@ function sendMove(m) {
   hoverDest = null;
   drawMarks();
   return true;
+}
+
+// mossa del computer: ricerca nei worker, pausa minima per vederle una alla volta,
+// poi al server (che ignora le risposte arrivate quando la partita è già andata avanti)
+async function playComputer(req) {
+  if (botPly === req.ply) return;
+  botPly = req.ply;
+  const t0 = performance.now();
+  try {
+    const move = await (await computer).choose(req.search,
+      { nSim: req.n_sim, timeLimit: req.time_limit, workers: req.workers });
+    const pause = req.delay * 1000 - (performance.now() - t0);
+    if (pause > 0) await new Promise((ok) => setTimeout(ok, pause));
+    if (!S.bot || S.bot.ply !== req.ply) return;
+    send({ type: "bot_move", ply: req.ply, q: move[0], r: move[1], d: move[2] });
+  } catch (e) {
+    botPly = null;
+    showHint(`Il computer non riesce a calcolare la mossa: ${e.message}`, true);
+  }
 }
 
 function send(obj) {
@@ -619,7 +645,10 @@ $("copy")?.addEventListener("click", async () => {
 function connect() {
   const proto = location.protocol === "https:" ? "wss" : "ws";
   ws = new WebSocket(`${proto}://${location.host}/ws/partita/${matchId}/`);
-  ws.onopen = () => { retry = 0; };
+  ws.onopen = () => {
+    retry = 0;
+    botPly = null;  // una risposta del computer può essersi persa con la connessione
+  };
   ws.onmessage = (ev) => {
     const msg = JSON.parse(ev.data);
     if (msg.type === "state") onState(msg);

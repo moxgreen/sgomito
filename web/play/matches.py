@@ -3,6 +3,10 @@
 Una Match avvolge il GameState del motore: le regole stanno tutte in hexpush, qui
 ci sono solo i posti a sedere, l'annullamento della prima mossa, l'abbandono, il
 registro delle mosse e i giudizi. La copia su database sta in records.py.
+
+Il computer non calcola sul server: quando tocca a lui, lo stato mandato al giocatore
+umano contiene la richiesta "bot" e il browser risponde con la mossa (play_bot), che
+il server valida come quelle degli umani.
 """
 import random
 import secrets
@@ -12,25 +16,23 @@ from django.utils import timezone
 
 from hexpush.board import other
 from hexpush.game import PASS, apply, legal_moves, new_game
-from hexpush.mcts import MCTSDecisiveBot
-from hexpush.parallel import ParallelMCTSBot, default_workers
-from hexpush.serialize import move_to_dict, state_to_dict
+from hexpush.serialize import move_to_dict, search_state_to_dict, state_to_dict
 
 
 def mcts_level(name, n_sim):
-    return name, f"{n_sim} simulazioni", lambda rng: MCTSDecisiveBot(rng, n_sim)
+    return name, f"{n_sim} simulazioni", {"n_sim": n_sim, "time_limit": None, "workers": 1}
 
 
 def champion_level():
-    """Più alberi MCTS in processi pypy3 paralleli, a tempo: con 4 processi pypy3 sono
-    ~60000 simulazioni al secondo, contro ~3000 di un solo albero in CPython."""
-    seconds, workers = settings.HEXPUSH_CHAMPION_SECONDS, default_workers()
-    return ("Campione", f"{seconds:g} s per mossa su {workers} processi",
-            lambda rng: ParallelMCTSBot(rng, 10**7, workers, time_limit=seconds))
+    """Più alberi MCTS paralleli nel browser (un Web Worker per ogni due core), a tempo:
+    la forza dipende dal dispositivo di chi gioca."""
+    seconds = settings.HEXPUSH_CHAMPION_SECONDS
+    return ("Campione", f"{seconds:g} s per mossa su tutti i core",
+            {"n_sim": 10**7, "time_limit": seconds, "workers": "auto"})
 
 
-# chiave -> (nome, descrizione, costruttore del bot dato un rng).
-# Tempi con CPython: ~0.35 s ogni 1000 simulazioni.
+# chiave -> (nome, descrizione, parametri della ricerca nel browser: simulazioni per
+# albero, limite in secondi, alberi paralleli). Vedi static/play/computer.js.
 LEVELS = {
     "facile": mcts_level("Facile", 200),
     "medio": mcts_level("Medio", 1000),
@@ -59,7 +61,7 @@ def clean_name(name):
 
 
 class Match:
-    def __init__(self, rules, level=None, rng=None, match_id=None, started=None):
+    def __init__(self, rules, level=None, match_id=None, started=None):
         self.id = match_id or new_id()
         self.rules = rules
         self.started = started or timezone.now()
@@ -71,14 +73,9 @@ class Match:
         self.names = {"A": None, "B": None}
         self.player_ids = {"A": None, "B": None}  # chiavi di models.Player
         self.level = level
-        self.bot = None
-        if level is not None:
-            self.bot = LEVELS[level][2](rng or random.Random())
         self.resigned = None              # chi ha abbandonato
         self.undos = 0
         self.rated = {}                   # colore -> stelle date
-        self.thinking = False
-        self.bot_task = None
         self.online = {}                  # pid -> connessioni aperte
 
     @property
@@ -126,6 +123,11 @@ class Match:
     def bot_to_move(self):
         return self.result is None and self.seats[self.state.to_move] == BOT
 
+    @property
+    def thinking(self):
+        """Il computer sta calcolando la sua mossa (nel browser di chi gioca)."""
+        return self.bot_to_move()
+
     # --- comandi -------------------------------------------------------------------
 
     def _check_turn(self, player):
@@ -136,14 +138,31 @@ class Match:
         if self.state.to_move != player:
             raise MoveError("Non è il tuo turno.")
 
+    def _find_move(self, q, r, d):
+        for m in legal_moves(self.state):
+            if m is not PASS and (m.q, m.r, m.d) == (q, r, d):
+                return m
+        raise MoveError("Mossa non valida.")
+
     def play(self, player, q, r, d):
         """Mossa di un giocatore umano, validata dal motore."""
         self._check_turn(player)
-        for m in legal_moves(self.state):
-            if m is not PASS and (m.q, m.r, m.d) == (q, r, d):
-                self.apply_move(m)
-                return m
-        raise MoveError("Mossa non valida.")
+        move = self._find_move(q, r, d)
+        self.apply_move(move)
+        return move
+
+    def play_bot(self, player, ply, q, r, d):
+        """Mossa del computer calcolata nel browser di `player` per la semimossa `ply`,
+        validata dal motore. False se arriva in ritardo (la partita è già andata avanti,
+        per esempio l'ha mandata un'altra scheda): si ignora."""
+        if self.level is None or player is None or self.seats[player] == BOT:
+            raise MoveError("Solo chi gioca contro il computer può mandarne le mosse.")
+        if ply != self.state.ply:
+            return False
+        if not self.bot_to_move():
+            raise MoveError("Non tocca al computer.")
+        self.apply_move(self._find_move(q, r, d))
+        return True
 
     def push(self, move, t=None):
         """Applica una mossa (già legale) e la registra."""
@@ -220,6 +239,12 @@ class Match:
                           "online": self.online.get(who, 0) > 0}
         return out
 
+    def bot_request(self):
+        """Ciò che serve al browser per calcolare la mossa del computer: parametri del
+        livello, pausa minima, semimossa a cui risponde e stato completo."""
+        return dict(LEVELS[self.level][2], ply=self.state.ply,
+                    delay=settings.HEXPUSH_BOT_DELAY, search=search_state_to_dict(self.state))
+
     def view(self, you):
         d = state_to_dict(self.state)
         d.update({
@@ -237,6 +262,8 @@ class Match:
         })
         if d["result"] is not None:
             d["legal"], d["ko_forbidden"] = [], []
+        if you is not None and self.bot_to_move() and self.seats[you] != BOT:
+            d["bot"] = self.bot_request()
         return d
 
 
@@ -253,7 +280,7 @@ def create_match(rules, creator, name, color, level=None, rng=None, player_id=No
     rng = rng or random.Random()
     if color not in ("A", "B"):
         color = rng.choice("AB")
-    match = Match(rules, level, rng)
+    match = Match(rules, level)
     match.sit(color, creator, name, player_id)
     if level is not None:
         match.seats[other(color)] = BOT

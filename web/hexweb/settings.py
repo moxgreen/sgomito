@@ -53,5 +53,5 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # pausa minima (secondi) prima di ogni mossa del computer, per vederle una alla volta
 HEXPUSH_BOT_DELAY = float(os.environ.get("HEXPUSH_BOT_DELAY", "0.7"))
-# secondi di ricerca per ogni mossa del livello Campione (processi pypy3 paralleli)
+# secondi di ricerca per ogni mossa del livello Campione (nel browser, su tutti i core)
 HEXPUSH_CHAMPION_SECONDS = float(os.environ.get("HEXPUSH_CHAMPION_SECONDS", "3"))

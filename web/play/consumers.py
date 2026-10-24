@@ -1,17 +1,14 @@
 """WebSocket di una partita: riceve move/undo/resign/rate, manda a tutti lo stato completo.
-Ogni cambiamento della partita viene anche salvato nel registro (records.py)."""
-import asyncio
-import logging
+Ogni cambiamento della partita viene anche salvato nel registro (records.py).
 
+Contro il computer il server non calcola niente: lo stato del giocatore umano contiene
+la richiesta "bot" e il suo browser risponde con bot_move (Match.play_bot)."""
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.layers import get_channel_layer
-from django.conf import settings
 
 from . import records
 from .matches import MoveError
-
-log = logging.getLogger(__name__)
 
 PID_COOKIE = "hexpush_pid"
 NOT_FOUND = 4404  # codice di chiusura: partita inesistente
@@ -29,40 +26,6 @@ def group_name(match):
 async def broadcast(match):
     """Ogni consumer della partita rimanda lo stato visto dal proprio giocatore."""
     await get_channel_layer().group_send(group_name(match), {"type": "match.update"})
-
-
-def start_bot(match):
-    if match.bot_task is None and match.bot_to_move():
-        match.bot_task = asyncio.create_task(run_bot(match))
-
-
-async def run_bot(match):
-    """Mosse del computer, una alla volta. Il calcolo gira in un thread: il ciclo degli
-    eventi resta libero e intanto lo stato dice thinking=True."""
-    loop = asyncio.get_running_loop()
-    match.thinking = True
-    try:
-        await broadcast(match)
-        while True:
-            state = match.state
-            t0 = loop.time()
-            move = await asyncio.to_thread(match.bot.choose, state)
-            pause = settings.HEXPUSH_BOT_DELAY - (loop.time() - t0)
-            if pause > 0:
-                await asyncio.sleep(pause)
-            if match.state is not state or match.result is not None:
-                break  # nel frattempo la partita è cambiata (abbandono)
-            match.apply_move(move)
-            await save_match(match)
-            if not match.bot_to_move():
-                break
-            await broadcast(match)  # prima mossa del turno, la seconda è in arrivo
-    except Exception:
-        log.exception("errore del computer nella partita %s", match.id)
-    finally:
-        match.thinking = False
-        match.bot_task = None
-    await broadcast(match)
 
 
 class MatchConsumer(AsyncJsonWebsocketConsumer):
@@ -85,7 +48,6 @@ class MatchConsumer(AsyncJsonWebsocketConsumer):
         if self.pid is not None:
             self.match.online[self.pid] = self.match.online.get(self.pid, 0) + 1
         await broadcast(self.match)
-        start_bot(self.match)
 
     async def disconnect(self, code):
         if getattr(self, "match", None) is None:
@@ -107,6 +69,13 @@ class MatchConsumer(AsyncJsonWebsocketConsumer):
                 except (KeyError, TypeError, ValueError):
                     raise MoveError("Mossa malformata.")
                 match.play(self.player, q, r, d)
+            elif kind == "bot_move":
+                try:
+                    ply, q, r, d = (int(content[k]) for k in ("ply", "q", "r", "d"))
+                except (KeyError, TypeError, ValueError):
+                    raise MoveError("Mossa malformata.")
+                if not match.play_bot(self.player, ply, q, r, d):
+                    return  # in ritardo: la partita è già andata avanti
             elif kind == "undo":
                 match.undo(self.player)
             elif kind == "resign":
@@ -122,7 +91,6 @@ class MatchConsumer(AsyncJsonWebsocketConsumer):
         if kind != "rate":
             await save_match(match)
         await broadcast(match)
-        start_bot(match)
 
     async def send_error(self, message):
         await self.send_json({"type": "error", "message": message})

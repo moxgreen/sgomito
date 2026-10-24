@@ -222,7 +222,7 @@ class TestTwoMoves(unittest.TestCase):
 
     def test_ko_two_moves(self):
         # B spinge due pedine di A; A non può rispingerle entrambe e ricreare la posizione
-        rules = Ruleset(moves_per_turn=2, ko=True)
+        rules = Ruleset(moves_per_turn=2, ko=True, no_pushback=False)
         cells = board_of(A=[(0, 0), (0, -2)], B=[(-1, 0), (-1, -2)])
         s = from_board(rules, cells, to_move="B")
         s = apply(s, Move(-1, 0, E, True))
@@ -233,7 +233,7 @@ class TestTwoMoves(unittest.TestCase):
         self.assertNotIn(Move(1, -2, W, True), legal_moves(s))  # la seconda no
         self.assertIn(Move(1, -2, SW, False), legal_moves(s))
         # senza ko invece si può
-        s = from_board(Ruleset(moves_per_turn=2), cells, to_move="B")
+        s = from_board(Ruleset(moves_per_turn=2, no_pushback=False), cells, to_move="B")
         for m in (Move(-1, 0, E, True), Move(-1, -2, E, True), Move(1, 0, W, True)):
             s = apply(s, m)
         self.assertIn(Move(1, -2, W, True), legal_moves(s))
@@ -320,7 +320,7 @@ class TestEnd(unittest.TestCase):
         cells = board_of(A=[(0, 0)], B=[(1, 0)])
         undo = Move(2, 0, W, True)  # B rispinge A e ricrea la posizione iniziale
         for ko in (False, True):
-            s = apply(from_board(Ruleset(ko=ko), cells), Move(0, 0, E, True))
+            s = apply(from_board(Ruleset(ko=ko, no_pushback=False), cells), Move(0, 0, E, True))
             moves = legal_moves(s)
             self.assertEqual(undo in moves, not ko)
             self.assertIn(Move(2, 0, E, False), moves)  # le altre mosse restano
@@ -338,7 +338,7 @@ class TestEnd(unittest.TestCase):
         s = apply(s, Move(0, -3, E, False))
         self.assertIn(back, legal_moves(s))
         # senza la regola (e senza ko) la rispinta è permessa subito
-        s = apply(from_board(Ruleset(), cells), Move(0, 0, E, True))
+        s = apply(from_board(Ruleset(no_pushback=False), cells), Move(0, 0, E, True))
         self.assertIn(back, legal_moves(s))
 
     def test_no_pushback_own_push(self):

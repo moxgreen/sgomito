@@ -1,0 +1,76 @@
+{% load static %}
+<div class="howto">
+  <p><b>Scopo.</b> Porta una tua pedina sulla <b>fila di casa dell'avversario</b>: il bordo
+    colorato in alto, con le celle tratteggiate del tuo colore.</p>
+  <p><b>Turno.</b> Muovi <b>due pedine diverse</b>, ciascuna di una casella in una delle sei
+    direzioni. Arancio apre la partita con una mossa sola.</p>
+  <p><b>Spinta.</b> Se la casella è occupata, da una pedina avversaria o tua, la spingi di
+    una casella nella stessa direzione e prendi il suo posto. Si può solo se dietro c'è una
+    casella libera: mai due pedine insieme, mai contro il muro, niente catture.</p>
+  <p><b>Niente rispinta.</b> Una pedina appena spinta, nel turno subito dopo, non può
+    rispingere indietro chi l'ha spinta.</p>
+  <p><b>Ko.</b> Non puoi rifare la posizione d'inizio del turno precedente: il turno
+    dell'avversario non si disfa subito.</p>
+  <p><b>Patta.</b> Stessa posizione ripetuta tre volte, oppure 200 semimosse.</p>
+
+  <h3>Sul campo</h3>
+  <ul>
+    <li>Clic su una tua pedina, poi su una casella evidenziata. Oppure trascinala.</li>
+    <li>Verde: spostamento. Rosso: spinta (la freccia mostra dove finisce la pedina spinta).</li>
+    <li>Barrato: mossa vietata dalla regola della rispinta o dal ko.</li>
+    <li>Pedina grigia: ha già mosso in questo turno. La prima mossa si annulla finché non
+      fai la seconda.</li>
+    <li>Le frecce tratteggiate mostrano l'ultimo turno dell'avversario.</li>
+  </ul>
+
+  <h3>Esempi</h3>
+  <p class="note">Visti da Arancio, su un campo più piccolo di quello vero.</p>
+  <div class="howto-examples">
+    <figure>
+      <picture><source srcset="{% static 'play/regole/turno-scuro.gif' %}" media="(prefers-color-scheme: dark)">
+        <img src="{% static 'play/regole/turno.gif' %}" width="299" height="307" loading="lazy"
+          alt="Arancio sposta una pedina, che diventa grigia, poi ne sposta un'altra; poi muove Blu."></picture>
+      <figcaption><b>Il turno.</b> Due mosse con due pedine diverse: quella che ha già mosso
+        diventa grigia fino alla fine del turno.</figcaption>
+    </figure>
+    <figure>
+      <picture><source srcset="{% static 'play/regole/spinta-scuro.gif' %}" media="(prefers-color-scheme: dark)">
+        <img src="{% static 'play/regole/spinta.gif' %}" width="299" height="307" loading="lazy"
+          alt="Arancio spinge una pedina blu di una casella e ne prende il posto."></picture>
+      <figcaption><b>La spinta.</b> Dietro la pedina blu c'è una casella libera: la spingi
+        lì ed entri al suo posto.</figcaption>
+    </figure>
+    <figure>
+      <picture><source srcset="{% static 'play/regole/spinte-vietate-scuro.gif' %}" media="(prefers-color-scheme: dark)">
+        <img src="{% static 'play/regole/spinte-vietate.gif' %}" width="299" height="307" loading="lazy"
+          alt="Due spinte impossibili, segnate con una croce: dietro c'è un'altra pedina, oppure il muro."></picture>
+      <figcaption><b>Quando non si spinge.</b> Se dietro c'è un'altra pedina (se ne spinge
+        una sola) o il muro. Qui sono barrate per chiarezza; in partita quelle caselle
+        semplicemente non si illuminano.</figcaption>
+    </figure>
+    <figure>
+      <picture><source srcset="{% static 'play/regole/spinta-propria-scuro.gif' %}" media="(prefers-color-scheme: dark)">
+        <img src="{% static 'play/regole/spinta-propria.gif' %}" width="299" height="307" loading="lazy"
+          alt="Arancio spinge una propria pedina: avanzano tutte e due di una casella."></picture>
+      <figcaption><b>Spingere le tue pedine.</b> Vale anche per le tue: quella davanti
+        avanza di una casella e quella dietro prende il suo posto. Utile per avanzare in
+        fila o per liberarti la strada.</figcaption>
+    </figure>
+    <figure>
+      <picture><source srcset="{% static 'play/regole/niente-rispinta-scuro.gif' %}" media="(prefers-color-scheme: dark)">
+        <img src="{% static 'play/regole/niente-rispinta.gif' %}" width="299" height="307" loading="lazy"
+          alt="Blu spinge una pedina arancio; nel turno di Arancio la spinta all'indietro è barrata, le altre mosse sono libere."></picture>
+      <figcaption><b>Niente rispinta.</b> Blu ha spinto la tua pedina. Nel tuo turno lei non
+        può rispingere indietro la pedina blu che l'ha spinta (barrato): annullerebbe la
+        spinta. Le altre mosse le restano, e dal turno dopo il divieto cade.</figcaption>
+    </figure>
+    <figure>
+      <picture><source srcset="{% static 'play/regole/vittoria-scuro.gif' %}" media="(prefers-color-scheme: dark)">
+        <img src="{% static 'play/regole/vittoria.gif' %}" width="299" height="307" loading="lazy"
+          alt="Una pedina arancio entra nella fila di casa blu e Arancio vince."></picture>
+      <figcaption><b>La vittoria.</b> Appena una tua pedina tocca la casa avversaria hai
+        vinto. Dalla penultima fila minaccia due caselle: qui Blu ne copre una sola.
+        Attento: se spingi una pedina avversaria sulla tua casa, vince l'avversario.</figcaption>
+    </figure>
+  </div>
+</div>

@@ -1,5 +1,5 @@
-.PHONY: help venv migrate run run-lan shell check test test-engine test-web registry
-.PHONY: simulate watch ladder clean
+.PHONY: help venv migrate run run-lan shell check test test-engine test-web test-js bench-js registry
+.PHONY: simulate watch ladder gifs clean
 
 # --- Configurazione (si può sovrascrivere: make run PORT=9000) ---
 VENV    := .venv
@@ -30,11 +30,14 @@ help:
 	@echo "  make shell                - Apre la shell di Django"
 	@echo "  make check                - Controlli di configurazione di Django"
 	@echo "  make registry             - Scarica partite e giudizi in results/playtest_*.csv"
+	@echo "  make gifs                 - Rigenera le GIF di \"Come si gioca\" (installa Pillow nel venv)"
 	@echo ""
 	@echo "Test:"
 	@echo "  make test                 - Tutti i test (motore + web)"
 	@echo "  make test-engine          - Test del motore hexpush/ (python3, senza dipendenze)"
 	@echo "  make test-web             - Test delle viste e del consumer WebSocket"
+	@echo "  make test-js              - Coerenza del motore JavaScript del browser (serve node >= 22)"
+	@echo "  make bench-js             - Simulazioni al secondo del computer nel browser (node)"
 	@echo ""
 	@echo "Self-play (con $(PYPY)):"
 	@echo "  make simulate             - $(BOTA) contro $(BOTB), $(GAMES) partite per colore"
@@ -78,6 +81,11 @@ check: venv
 registry: migrate
 	$(PYTHON) web/manage.py registro --out results/playtest
 
+# le GIF degli esempi di "Come si gioca", giocate sul motore (web/tools/gif_regole.py)
+gifs: venv
+	$(PYTHON) -m pip install -q Pillow
+	$(PYTHON) web/tools/gif_regole.py
+
 # --- Test ---
 
 test: test-engine test-web
@@ -87,6 +95,16 @@ test-engine:
 
 test-web: venv
 	$(PYTHON) web/manage.py test play
+
+# già compreso in test-engine (si salta se node manca)
+test-js:
+	python3 -m unittest -v tests.test_js_engine
+
+bench-js:
+	python3 -c 'import json; from hexpush.game import new_game; from hexpush.rules import Ruleset; \
+	from hexpush.serialize import search_state_to_dict; \
+	print(json.dumps(search_state_to_dict(new_game(Ruleset(ko=True, no_pushback=True, moves_per_turn=2)))))' \
+	| node tests/js/bench.mjs 20000
 
 # --- Self-play ---
 

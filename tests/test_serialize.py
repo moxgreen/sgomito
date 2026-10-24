@@ -46,7 +46,7 @@ class TestKoForbidden(unittest.TestCase):
         self.assertEqual(state_to_dict(s)["ko_forbidden"][0]["rule"], "pushback")
 
     def test_no_ko_rule(self):
-        s = from_board(Ruleset(), {(0, 0): "A", (1, 0): "B"}, "A")
+        s = from_board(Ruleset(no_pushback=False), {(0, 0): "A", (1, 0): "B"}, "A")
         s = apply(s, Move(0, 0, E, True))
         self.assertEqual(ko_forbidden(s), [])
 

@@ -69,7 +69,7 @@ minimale. Le decisioni di design si prendono in base ai numeri del self-play, no
 | `K`         | 1       | 1, 2                  | pedine da portare di là per vincere    |
 | `push_own`  | True    | True, False           | si possono spingere le proprie pedine  |
 | `ko`        | False   | True, False           | vietato riportare la posizione di 2 semimosse fa |
-| `no_pushback` | False | True, False           | la pedina appena spinta non può rispingere indietro chi l'ha spinta (vale per il turno subito dopo) |
+| `no_pushback` | True  | True, False           | la pedina appena spinta non può rispingere indietro chi l'ha spinta (vale per il turno subito dopo) |
 | `push_off`  | False   | True, False           | spingere fuori dal campo una pedina avversaria la elimina; chi resta con meno di K pedine perde |
 | `moves_per_turn` | 1  | 1, 2                  | 2: due mosse per turno con pedine diverse, A apre con una sola; il ko vale a fine turno |
 | `MAX_PLIES` | 200     | —                     | limite anti-partite infinite (in semimosse) |
@@ -172,6 +172,10 @@ hexpush/
 tests/
   test_game.py   # mosse legali, spinte, bordo, vittoria, ripetizione
   test_bots.py   # bot, e coerenza tra FastBoard e il motore di riferimento
+  test_js_engine.py  # coerenza del motore JS del browser (tests/js/check_engine.mjs, node)
+web/play/static/play/
+  mcts.js        # porting di FastBoard + MCTS: il computer gioca nel browser
+  computer.js    # Web Worker paralleli, somma delle visite (come parallel.py)
 ```
 
 Self-play con `pypy3` (playout ~12x più veloci); i test girano anche con python3.
