@@ -4,17 +4,18 @@
 {% block content %}
 <div id="game" class="game" data-match="{{ match.id }}">
   <div class="board-wrap">
+    <div id="status" class="turn-bar" aria-live="polite">Connessione…</div>
     <svg id="board" role="img" aria-label="Campo di gioco"></svg>
   </div>
   <aside class="panel">
     <div id="players" class="players"></div>
-    <div id="status" class="status" aria-live="polite">Connessione…</div>
     <div id="result" class="result" hidden></div>
     <div class="buttons">
       <button id="undo" type="button" disabled title="Annulla la prima mossa del turno">Annulla mossa</button>
       <button id="resign" type="button" class="secondary">Abbandona</button>
     </div>
     <div id="hint" class="hint" aria-live="polite"></div>
+    <button id="rate-open" type="button" class="secondary" hidden>Dai un giudizio</button>
     {% if not vs_computer %}
     <div id="share" class="share" hidden>
       <p>Manda questo link all'avversario:</p>
@@ -28,12 +29,31 @@
         <li>Clic su una tua pedina, poi su una casella evidenziata. Oppure trascinala.</li>
         <li>Verde: spostamento. Rosso: spinta (la freccia mostra dove finisce la pedina spinta).</li>
         <li>Ogni turno muovi due pedine diverse; la prima mossa si può annullare finché non fai la seconda.</li>
-        <li>Barrato: mossa vietata dal ko (rifarebbe la posizione d'inizio del turno precedente).</li>
+        <li>Barrato: mossa vietata. Una pedina appena spinta non può rispingere indietro chi l'ha
+          spinta; il ko vieta di rifare la posizione d'inizio del turno precedente.</li>
         <li>Vince chi porta una pedina sulla fila di casa avversaria (bordo colorato in alto).</li>
       </ul>
       <p id="rules-summary" class="note"></p>
     </details>
   </aside>
 </div>
-<script type="module" src="{% static 'play/game.js' %}"></script>
+<dialog id="rating" class="rating">
+  <form id="rating-form" method="dialog">
+    <h2 id="rating-title">Partita finita</h2>
+    <p>Quanto ti sei divertito?</p>
+    <div class="stars" tabindex="-1" autofocus role="radiogroup" aria-label="Divertimento da 1 a 5 stelle">
+      {% for n in "12345" %}<button type="button" class="star" data-stars="{{ n }}"
+        role="radio" aria-checked="false" aria-label="{{ n }} stell{{ n|pluralize:'a,e' }}">★</button>{% endfor %}
+    </div>
+    <p id="stars-label" class="note">Scegli da 1 a 5 stelle.</p>
+    <label>Commento (facoltativo)
+      <textarea id="rating-comment" rows="3" maxlength="2000"
+        placeholder="cosa ti è piaciuto, cosa no, regole poco chiare…"></textarea></label>
+    <div class="buttons">
+      <button id="rating-send" type="submit" disabled>Invia giudizio</button>
+      <button id="rating-skip" type="button" class="secondary">Non ora</button>
+    </div>
+  </form>
+</dialog>
+<script type="module" src="{% static 'play/game.js' %}?v={{ asset_version }}"></script>
 {% endblock %}

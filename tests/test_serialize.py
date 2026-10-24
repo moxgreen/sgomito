@@ -36,6 +36,15 @@ class TestKoForbidden(unittest.TestCase):
         self.assertNotIn(back, legal_moves(s))
         self.assertEqual(ko_forbidden(s), [back])
 
+    def test_pushback_is_forbidden(self):
+        rules = Ruleset(moves_per_turn=2, no_pushback=True)
+        cells = {(0, 0): "A", (0, -2): "A", (1, 0): "B"}
+        s = from_board(rules, cells, "A", moves_left=1)
+        s = apply(s, Move(0, 0, E, True))          # A (1,0), B (2,0): tocca a B
+        back = Move(2, 0, W, True)
+        self.assertEqual(ko_forbidden(s), [back])
+        self.assertEqual(state_to_dict(s)["ko_forbidden"][0]["rule"], "pushback")
+
     def test_no_ko_rule(self):
         s = from_board(Ruleset(), {(0, 0): "A", (1, 0): "B"}, "A")
         s = apply(s, Move(0, 0, E, True))

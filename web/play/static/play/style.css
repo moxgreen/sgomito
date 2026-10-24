@@ -43,8 +43,26 @@ body {
 
 a { color: var(--b); }
 
-.top { padding: 10px 16px; border-bottom: 1px solid var(--line); }
+.top {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
 .brand { font-weight: 700; font-size: 1.15rem; text-decoration: none; color: var(--text); }
+.top nav { display: flex; gap: 8px; }
+.top nav a {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 600;
+}
+.top nav a:hover { border-color: var(--text); }
+.top nav a.primary { background: var(--b); border-color: var(--b); color: #fff; }
 
 main { max-width: 1100px; margin: 0 auto; padding: 16px; }
 
@@ -111,7 +129,7 @@ select, input[type=number], input[readonly] {
 #board {
   width: 100%;
   height: auto;
-  max-height: calc(100vh - 90px);
+  max-height: calc(100vh - 150px);
   display: block;
   touch-action: none;          /* il trascinamento al tocco non fa scorrere la pagina */
   user-select: none;
@@ -137,15 +155,33 @@ select, input[type=number], input[readonly] {
 .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--locked); }
 .dot.online { background: var(--move); }
 
-.status { font-weight: 600; min-height: 1.5em; }
-.status.second::before {
+.turn-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  margin-bottom: 8px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 2px solid var(--line);
+  background: var(--card);
+  color: var(--muted);
+  font-size: 1.1rem;
+  font-weight: 600;
+  transition: background-color .2s, color .2s, border-color .2s;
+}
+.turn-bar .mini { flex: none; }
+.turn-bar.mine { color: #fff; }
+.turn-bar.turn-A { background: var(--a); border-color: var(--a); }
+.turn-bar.turn-B { background: var(--b); border-color: var(--b); }
+.turn-bar.mine .mini .body { stroke: #fff; }
+.turn-bar.ended { color: var(--text); border-color: var(--text); }
+.turn-bar.second::before {
   content: "2ª";
-  display: inline-block;
-  margin-right: 8px;
   padding: 0 6px;
   border-radius: 6px;
-  background: var(--text);
-  color: var(--bg);
+  background: #fff;
+  color: #2a2620;
 }
 .result { padding: 12px; border-radius: 10px; background: var(--card); border: 2px solid var(--text); }
 .result[hidden], .share[hidden] { display: none; }
@@ -202,3 +238,54 @@ select, input[type=number], input[readonly] {
 .head-push { fill: var(--push); }
 .head-ko { fill: var(--locked); }
 .off-mark { fill: var(--push); font-size: 30px; font-weight: 700; text-anchor: middle; }
+
+/* --- nome, giudizio, registro --- */
+
+.name-field { display: flex; flex-direction: column; gap: 4px; margin: 0 0 16px; font-weight: 600; }
+.name-field input, textarea {
+  font: inherit;
+  font-weight: 400;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  max-width: 360px;
+}
+.name-form { max-width: 480px; }
+
+.rating {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+  color: var(--text);
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 20px;
+}
+.rating::backdrop { background: rgba(0, 0, 0, .45); }
+.rating h2 { margin: 0 0 4px; font-size: 1.2rem; }
+.rating label { display: flex; flex-direction: column; gap: 4px; margin: 12px 0; }
+.rating textarea { max-width: none; width: 100%; resize: vertical; }
+.stars { display: flex; gap: 4px; outline: none; }
+.star {
+  font-size: 2.2rem;
+  line-height: 1;
+  padding: 2px 4px;
+  background: none;
+  color: var(--line);
+  border: none;
+}
+.star.on { color: #f0a500; }
+.star:hover, .star:focus-visible { transform: scale(1.12); }
+#rate-open[hidden] { display: none; }
+
+.registry h1 { font-size: 1.5rem; margin-top: 0; }
+.registry h2 { font-size: 1.15rem; margin-top: 28px; }
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: .92rem; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; white-space: nowrap; }
+td.comments p { margin: 0 0 4px; max-width: 320px; }
+.dist { max-width: 420px; }
+.dist-row { display: grid; grid-template-columns: 40px 1fr 32px; gap: 8px; align-items: center; }
+.dist-row .bar { display: block; height: 12px; border-radius: 6px; background: #f0a500; min-width: 2px; }

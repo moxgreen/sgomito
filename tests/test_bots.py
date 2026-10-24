@@ -1,18 +1,22 @@
+import inspect
 import random
 import unittest
 
 from hexpush.bots import BOTS, make_bot, winning_replies
 from hexpush.board import geometry
-from hexpush.game import (PASS, Move, apply, from_board, immediate_outcomes, legal_moves,
-                          new_game)
+from hexpush.game import (PASS, GameState, Move, apply, from_board, immediate_outcomes,
+                          legal_moves, new_game)
 from hexpush.mcts import FastBoard, fast_geometry, replay, terminal_value
+from hexpush.parallel import FIELDS
 from hexpush.rules import Ruleset
 
 CONFIGS = [Ruleset(), Ruleset(R=3, N=3, K=2), Ruleset(R=5, N=8, goal_wide=True),
            Ruleset(push_own=False, ko=True), Ruleset(ko=True, K=2, goal_wide=True),
            Ruleset(push_off=True, ko=True), Ruleset(R=3, N=3, K=2, push_off=True),
            Ruleset(moves_per_turn=2), Ruleset(moves_per_turn=2, ko=True),
-           Ruleset(R=3, N=3, moves_per_turn=2, ko=True, push_off=True)]
+           Ruleset(R=3, N=3, moves_per_turn=2, ko=True, push_off=True),
+           Ruleset(no_pushback=True), Ruleset(moves_per_turn=2, ko=True, no_pushback=True),
+           Ruleset(R=3, N=3, moves_per_turn=2, no_pushback=True, push_off=True)]
 
 
 def as_moves(fb):
@@ -87,7 +91,9 @@ class TestFastBoard(unittest.TestCase):
                    Ruleset(R=4, N=3, push_own=False, max_plies=40),
                    Ruleset(R=3, N=3, push_off=True, max_plies=60),
                    Ruleset(R=3, N=2, moves_per_turn=2, max_plies=60),
-                   Ruleset(R=3, N=3, moves_per_turn=2, ko=True, max_plies=60)]
+                   Ruleset(R=3, N=3, moves_per_turn=2, ko=True, max_plies=60),
+                   Ruleset(R=3, N=3, moves_per_turn=2, ko=True, no_pushback=True,
+                           max_plies=60)]
         reasons = set()
         for rules in configs:
             geo = fast_geometry(rules.R, rules.goal_wide)
@@ -156,6 +162,20 @@ class TestBots(unittest.TestCase):
         for seed in range(3):
             m = make_bot("mcts:500", random.Random(seed)).choose(s)
             self.assertEqual(winning_replies(apply(s, m)), 0, m)
+
+    def test_parallel_mcts(self):
+        # processi di lavoro veri (pypy3 se c'è): vittoria immediata e difesa
+        win = from_board(Ruleset(), {(0, 3): "A", (-3, 0): "A", (0, -1): "B", (1, -1): "B"})
+        m = make_bot("mctsp:200:2", random.Random(0)).choose(win)
+        self.assertEqual(apply(win, m).result, "A")
+        s = from_board(Ruleset(), {(0, -4): "A", (2, 1): "A", (0, -3): "B", (-2, 3): "B"})
+        bot = make_bot("mctsp:500:2", random.Random(0))
+        m = bot.choose(s)
+        self.assertEqual(winning_replies(apply(s, m)), 0, m)
+        self.assertEqual(bot.last_stats[0], len(legal_moves(s)))
+        # i processi ricostruiscono lo stato con GameState(*campi)
+        params = tuple(inspect.signature(GameState.__init__).parameters)[1:]
+        self.assertEqual(FIELDS, params)
 
 
 if __name__ == "__main__":

@@ -1,25 +1,45 @@
 """Partite in corso, tenute in memoria nel processo del server.
 
 Una Match avvolge il GameState del motore: le regole stanno tutte in hexpush, qui
-ci sono solo i posti a sedere, l'annullamento della prima mossa, l'abbandono e il
-registro delle mosse per disegnare l'ultimo turno.
+ci sono solo i posti a sedere, l'annullamento della prima mossa, l'abbandono, il
+registro delle mosse e i giudizi. La copia su database sta in records.py.
 """
 import random
 import secrets
 
+from django.conf import settings
+from django.utils import timezone
+
 from hexpush.board import other
 from hexpush.game import PASS, apply, legal_moves, new_game
 from hexpush.mcts import MCTSDecisiveBot
+from hexpush.parallel import ParallelMCTSBot, default_workers
 from hexpush.serialize import move_to_dict, state_to_dict
 
-# chiave -> (nome, simulazioni MCTS). Tempi con CPython: ~0.35 s ogni 1000 simulazioni.
+
+def mcts_level(name, n_sim):
+    return name, f"{n_sim} simulazioni", lambda rng: MCTSDecisiveBot(rng, n_sim)
+
+
+def champion_level():
+    """Più alberi MCTS in processi pypy3 paralleli, a tempo: con 4 processi pypy3 sono
+    ~60000 simulazioni al secondo, contro ~3000 di un solo albero in CPython."""
+    seconds, workers = settings.HEXPUSH_CHAMPION_SECONDS, default_workers()
+    return ("Campione", f"{seconds:g} s per mossa su {workers} processi",
+            lambda rng: ParallelMCTSBot(rng, 10**7, workers, time_limit=seconds))
+
+
+# chiave -> (nome, descrizione, costruttore del bot dato un rng).
+# Tempi con CPython: ~0.35 s ogni 1000 simulazioni.
 LEVELS = {
-    "facile": ("Facile", 200),
-    "medio": ("Medio", 1000),
-    "difficile": ("Difficile", 4000),
-    "esperto": ("Esperto", 12000),
+    "facile": mcts_level("Facile", 200),
+    "medio": mcts_level("Medio", 1000),
+    "difficile": mcts_level("Difficile", 4000),
+    "esperto": mcts_level("Esperto", 12000),
+    "campione": champion_level(),
 }
 BOT = "computer"  # nei posti, al posto dell'identificativo di un giocatore umano
+NAME_MAX = 30
 
 MATCHES = {}
 
@@ -28,23 +48,45 @@ class MoveError(Exception):
     """Mossa o comando rifiutato: il messaggio va mostrato a chi l'ha mandato."""
 
 
+def clean_name(name):
+    """Nome del giocatore ripulito; ValueError se vuoto o troppo lungo."""
+    name = " ".join(str(name or "").split())
+    if not name:
+        raise ValueError("scrivi il tuo nome")
+    if len(name) > NAME_MAX:
+        raise ValueError(f"il nome può avere al massimo {NAME_MAX} caratteri")
+    return name
+
+
 class Match:
-    def __init__(self, rules, level=None, rng=None):
-        self.id = new_id()
+    def __init__(self, rules, level=None, rng=None, match_id=None, started=None):
+        self.id = match_id or new_id()
         self.rules = rules
+        self.started = started or timezone.now()
         self.state = new_game(rules)
-        self.log = []                     # (giocatore, mossa) in ordine, passi compresi
+        self.log = []                     # (giocatore, mossa, secondi) in ordine, passi compresi
         self.turn_start = self.state      # stato all'inizio del turno in corso
         self.turn_start_log = 0           # len(log) all'inizio del turno in corso
-        self.seats = {"A": None, "B": None}
+        self.seats = {"A": None, "B": None}       # pid, BOT o None
+        self.names = {"A": None, "B": None}
+        self.player_ids = {"A": None, "B": None}  # chiavi di models.Player
         self.level = level
         self.bot = None
         if level is not None:
-            self.bot = MCTSDecisiveBot(rng or random.Random(), LEVELS[level][1])
+            self.bot = LEVELS[level][2](rng or random.Random())
         self.resigned = None              # chi ha abbandonato
+        self.undos = 0
+        self.rated = {}                   # colore -> stelle date
         self.thinking = False
         self.bot_task = None
         self.online = {}                  # pid -> connessioni aperte
+
+    @property
+    def mode(self):
+        return "amico" if self.level is None else "computer"
+
+    def elapsed(self):
+        return round((timezone.now() - self.started).total_seconds(), 1)
 
     # --- posti ---------------------------------------------------------------------
 
@@ -56,15 +98,20 @@ class Match:
                 return p
         return None
 
-    def join(self, pid):
-        """Colore di `pid`: il suo posto, o il primo libero; None se guarda soltanto."""
+    def sit(self, color, pid, name, player_id=None):
+        self.seats[color], self.names[color], self.player_ids[color] = pid, name, player_id
+
+    def join(self, pid, name=None, player_id=None):
+        """Colore di `pid`: il suo posto, o il primo libero se ha un nome; None se guarda
+        soltanto. Il secondo valore dice se ha appena preso posto."""
         seat = self.seat_of(pid)
-        if seat is None and pid is not None:
-            for p in ("A", "B"):
-                if self.seats[p] is None:
-                    self.seats[p], seat = pid, p
-                    break
-        return seat
+        if seat is not None or pid is None or not name:
+            return seat, False
+        for p in ("A", "B"):
+            if self.seats[p] is None:
+                self.sit(p, pid, name, player_id)
+                return p, True
+        return None, False
 
     # --- esito ---------------------------------------------------------------------
 
@@ -98,18 +145,20 @@ class Match:
                 return m
         raise MoveError("Mossa non valida.")
 
+    def push(self, move, t=None):
+        """Applica una mossa (già legale) e la registra."""
+        mover = self.state.to_move
+        self.state = apply(self.state, move)
+        self.log.append((mover, move, self.elapsed() if t is None else t))
+        if self.state.to_move != mover or self.state.result is not None:
+            self.turn_start = self.state
+            self.turn_start_log = len(self.log)
+
     def apply_move(self, move):
         """Applica una mossa legale; poi passa da solo finché chi è di turno non ha mosse."""
-        while True:
-            mover = self.state.to_move
-            self.state = apply(self.state, move)
-            self.log.append((mover, move))
-            if self.state.to_move != mover or self.state.result is not None:
-                self.turn_start = self.state
-                self.turn_start_log = len(self.log)
-            if self.state.result is not None or legal_moves(self.state) != [PASS]:
-                return
-            move = PASS
+        self.push(move)
+        while self.state.result is None and legal_moves(self.state) == [PASS]:
+            self.push(PASS)
 
     def can_undo(self, player):
         return (player is not None and self.result is None
@@ -122,6 +171,7 @@ class Match:
             raise MoveError("Non c'è niente da annullare.")
         self.state = self.turn_start
         del self.log[self.turn_start_log:]
+        self.undos += 1
 
     def resign(self, player):
         if player is None:
@@ -129,6 +179,16 @@ class Match:
         if self.result is not None:
             raise MoveError("La partita è finita.")
         self.resigned = player
+
+    def check_rating(self, player, stars):
+        """Stelle (1-5) valide per un giudizio di `player`; MoveError altrimenti."""
+        if player is None or self.seats[player] == BOT:
+            raise MoveError("Solo chi ha giocato può dare un giudizio.")
+        if self.result is None:
+            raise MoveError("Il giudizio si dà a partita finita.")
+        if isinstance(stars, bool) or not isinstance(stars, int) or not 1 <= stars <= 5:
+            raise MoveError("Il giudizio va da 1 a 5 stelle.")
+        return stars
 
     # --- vista per il browser ---------------------------------------------------------
 
@@ -145,15 +205,19 @@ class Match:
         while j > 0 and self.log[j - 1][0] == who:
             j -= 1
         geo = self.state.geo
-        return [move_to_dict(geo, m, p) for p, m in self.log[j:i + 1]]
+        return [move_to_dict(geo, m, p) for p, m, _ in self.log[j:i + 1]]
 
     def players(self):
         out = {}
         for p, who in self.seats.items():
             if who == BOT:
-                out[p] = f"computer ({LEVELS[self.level][0]})"
+                out[p] = {"kind": "computer", "name": f"computer ({LEVELS[self.level][0]})",
+                          "online": True}
+            elif who is None:
+                out[p] = {"kind": "libero", "name": None, "online": False}
             else:
-                out[p] = "libero" if who is None else "umano"
+                out[p] = {"kind": "umano", "name": self.names[p],
+                          "online": self.online.get(who, 0) > 0}
         return out
 
     def view(self, you):
@@ -163,13 +227,13 @@ class Match:
             "match": self.id,
             "you": you,
             "players": self.players(),
-            "online": {p: who == BOT or self.online.get(who, 0) > 0
-                       for p, who in self.seats.items()},
             "last_turn": self.last_turn(you),
             "can_undo": self.can_undo(you),
             "thinking": self.thinking,
             "result": self.result,
             "reason": self.reason,
+            "resigned": self.resigned,
+            "rated": self.rated.get(you) if you else None,
         })
         if d["result"] is not None:
             d["legal"], d["ko_forbidden"] = [], []
@@ -183,19 +247,15 @@ def new_id():
             return mid
 
 
-def create_match(rules, creator, color, level=None, rng=None):
+def create_match(rules, creator, name, color, level=None, rng=None, player_id=None):
     """Nuova partita. `color` è 'A', 'B' o 'casuale'; con `level` l'altro posto è del
     computer, altrimenti resta libero per chi apre il link."""
     rng = rng or random.Random()
     if color not in ("A", "B"):
         color = rng.choice("AB")
     match = Match(rules, level, rng)
-    match.seats[color] = creator
+    match.sit(color, creator, name, player_id)
     if level is not None:
         match.seats[other(color)] = BOT
     MATCHES[match.id] = match
     return match
-
-
-def get_match(match_id):
-    return MATCHES.get(match_id)

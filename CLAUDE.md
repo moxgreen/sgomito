@@ -51,6 +51,11 @@ minimale. Le decisioni di design si prendono in base ai numeri del self-play, no
   così il campo resta simmetrico anche quando `N` non si centra esattamente.
 - Patta per limite: a `ply == max_plies` senza vincitore. La ripetizione conta anche la
   posizione iniziale. Il passo del turno è la mossa `PASS = None`.
+- `no_pushback` (versione stretta): se nel suo ultimo turno l'avversario ha spinto una mia
+  pedina da `b` a `c` entrando in `b` da `a`, nel mio turno è vietata la spinta da `c`
+  verso `b` (direzione opposta) che rimanderebbe in `a` una pedina avversaria. Spingere le
+  proprie pedine non crea divieti. Con una mossa per turno è già coperta dal `ko`; con
+  `moves_per_turn=2` no, perché il `ko` guarda la posizione intera a fine turno.
 - Vantaggio del primo giocatore: % di vittorie di A sulle partite **decise**; il tasso di
   patta si riporta a parte.
 
@@ -64,6 +69,7 @@ minimale. Le decisioni di design si prendono in base ai numeri del self-play, no
 | `K`         | 1       | 1, 2                  | pedine da portare di là per vincere    |
 | `push_own`  | True    | True, False           | si possono spingere le proprie pedine  |
 | `ko`        | False   | True, False           | vietato riportare la posizione di 2 semimosse fa |
+| `no_pushback` | False | True, False           | la pedina appena spinta non può rispingere indietro chi l'ha spinta (vale per il turno subito dopo) |
 | `push_off`  | False   | True, False           | spingere fuori dal campo una pedina avversaria la elimina; chi resta con meno di K pedine perde |
 | `moves_per_turn` | 1  | 1, 2                  | 2: due mosse per turno con pedine diverse, A apre con una sola; il ko vale a fine turno |
 | `MAX_PLIES` | 200     | —                     | limite anti-partite infinite (in semimosse) |
@@ -158,6 +164,7 @@ hexpush/
   game.py        # GameState, legal_moves(state), apply(state, move), winner(state)
   bots.py        # Random, Greedy, Turtle, Rusher, PingPong, MCTS (interfaccia: choose(state) -> move)
   mcts.py        # MCTS su FastBoard (campo ad array, hash di Zobrist); mcts = puro, mctsd = mosse decisive + c=0.5
+  parallel.py    # mctsp: alberi mctsd in processi pypy3 paralleli, visite sommate alla radice (livello Campione del web)
   simulate.py    # CLI: --R --N --K ... --games --botA --botB --seed, scrive CSV
   sweep.py       # griglia di parametri, chiama simulate, aggrega risultati
   ladder.py      # curva a raddoppi MCTS (docs/curva_raddoppi.md), --against BOT
@@ -228,7 +235,14 @@ uniformemente.
    99.5%, Rusher 94%, PingPong 100%. Tra MCTS: A 53.8% (±3.1), patte 0.1%, ~50-60
    semimosse, spinte 27% delle mosse. Tutte le soglie superate.
 
-Candidato attuale: **v1 + `ko` + `moves_per_turn=2`**. Secondo il protocollo si può
+6. **Il `ko` non ferma la rispinta con `moves_per_turn=2`**: basta che l'altra mossa del
+   turno cambi il campo. Greedy contro Greedy: il 32% delle spinte annullava esattamente
+   una spinta del turno avversario precedente. Con `no_pushback` scende quasi a zero
+   (restano solo casi in cui sulla cella c'è ormai una pedina propria); Greedy contro
+   Greedy: semimosse 38 → 30, spinte 66% → 54% delle mosse, A 47% in entrambi i casi.
+   **Le misure MCTS del punto 5 sono senza `no_pushback`: vanno rifatte.**
+
+Candidato attuale: **v1 + `ko` + `no_pushback` + `moves_per_turn=2`** (regole del sito web). Secondo il protocollo si può
 passare agli umani e a Django. Da tenere d'occhio: leggero vantaggio di A (53.8%).
 
 ## Domande ancora aperte (da decidere con i dati, non adesso)

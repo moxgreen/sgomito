@@ -1,4 +1,5 @@
-"""Impostazioni del frontend web. Niente database: le partite stanno in memoria."""
+"""Impostazioni del frontend web. Le partite in corso stanno in memoria; il registro
+del playtesting (giocatori, partite, giudizi) in SQLite."""
 import os
 import sys
 from pathlib import Path
@@ -30,13 +31,17 @@ MIDDLEWARE = [
 ROOT_URLCONF = "hexweb.urls"
 ASGI_APPLICATION = "hexweb.asgi.application"
 CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
-DATABASES = {}
+DATABASES = {"default": {
+    "ENGINE": "django.db.backends.sqlite3",
+    "NAME": os.environ.get("HEXPUSH_DB", str(BASE_DIR / "db.sqlite3")),
+}}
 
 TEMPLATES = [{
     "BACKEND": "django.template.backends.django.DjangoTemplates",
     "DIRS": [],
     "APP_DIRS": True,
-    "OPTIONS": {"context_processors": ["django.template.context_processors.request"]},
+    "OPTIONS": {"context_processors": ["django.template.context_processors.request",
+                                       "play.context.assets"]},
 }]
 
 LANGUAGE_CODE = "it"
@@ -48,3 +53,5 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # pausa minima (secondi) prima di ogni mossa del computer, per vederle una alla volta
 HEXPUSH_BOT_DELAY = float(os.environ.get("HEXPUSH_BOT_DELAY", "0.7"))
+# secondi di ricerca per ogni mossa del livello Campione (processi pypy3 paralleli)
+HEXPUSH_CHAMPION_SECONDS = float(os.environ.get("HEXPUSH_CHAMPION_SECONDS", "3"))

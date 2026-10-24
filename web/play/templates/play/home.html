@@ -4,8 +4,16 @@
   {% csrf_token %}
   <p class="intro">Porta una tua pedina sulla fila di casa avversaria. Ogni turno muovi
     due pedine diverse (chi apre ne muove una sola); puoi spingere una pedina se dietro
-    c'è una casella libera. Non si può annullare subito la spinta dell'avversario (ko).</p>
+    c'è una casella libera. Una pedina appena spinta non può rispingere indietro chi l'ha
+    spinta, e non si può disfare subito il turno dell'avversario (ko).</p>
+  <p class="intro">È un playtest: le partite vengono registrate e alla fine ti chiediamo
+    quanto ti sei divertito.</p>
   {% if error %}<p class="error">Impossibile creare la partita: {{ error }}.</p>{% endif %}
+
+  <label class="name-field">Il tuo nome
+    <input type="text" name="name" value="{{ v.name }}" maxlength="30" required
+      autocomplete="nickname" placeholder="come ti vedranno gli altri">
+  </label>
 
   <fieldset>
     <legend>Il tuo colore</legend>
@@ -27,8 +35,8 @@
       <h2>Gioca contro il computer</h2>
       <label>Difficoltà
         <select name="level">
-          {% for key, name, n in levels %}
-          <option value="{{ key }}" {% if v.level == key %}selected{% endif %}>{{ name }} ({{ n }} simulazioni)</option>
+          {% for key, name, desc in levels %}
+          <option value="{{ key }}" {% if v.level == key %}selected{% endif %}>{{ name }} ({{ desc }})</option>
           {% endfor %}
         </select>
       </label>
@@ -49,7 +57,7 @@
       <label class="check"><input type="checkbox" name="push_off" {% if v.push_off %}checked{% endif %}>
         Spinta fuori dal campo (elimina la pedina avversaria)</label>
     </div>
-    <p class="note">Sempre attivi: ko e due mosse per turno.</p>
+    <p class="note">Sempre attivi: niente rispinta, ko e due mosse per turno.</p>
   </details>
 </form>
 {% endblock %}

@@ -11,13 +11,14 @@ finisce solo per vittoria o per max_plies). Il ko invece è esatto ovunque: si
 confronta l'hash della posizione di fine turno con quello d'inizio del turno
 precedente. Basta controllare le spinte: una mossa semplice non può mai ricreare
 quella posizione, perché nessuna mossa dell'avversario sposta le pedine di chi muove
-se non spingendole.
+se non spingendole. Anche no_pushback è esatto: si tengono le spinte inverse vietate.
 """
 import math
 import random
+import time
 from functools import lru_cache
 
-from .board import geometry
+from .board import OPPOSITE, geometry
 from .game import Move, legal_moves
 
 A, B = 1, 2
@@ -83,7 +84,8 @@ class FastBoard:
     """Copia mutabile di uno stato per i playout."""
 
     __slots__ = ("geo", "rules", "board", "pieces", "pid", "goal_count", "to_move", "ply",
-                 "moves_left", "locked", "hash", "turn_start", "ko_hash")
+                 "moves_left", "locked", "hash", "turn_start", "ko_hash", "turn_pushes",
+                 "banned")
 
     def __init__(self, state):
         g = fast_geometry(state.rules.R, state.rules.goal_wide)
@@ -109,6 +111,9 @@ class FastBoard:
         self.ko_hash = None
         if state.rules.ko and len(state.turn_keys) >= 2:
             self.ko_hash = g.hash_key(state.turn_keys[-2])
+        # no_pushback: spinte inverse come cella * 6 + direzione (vedi GameState)
+        self.turn_pushes = tuple(g.index[(q, r)] * 6 + d for q, r, d in state.turn_pushes)
+        self.banned = tuple(g.index[(q, r)] * 6 + d for q, r, d in state.banned)
 
     def copy(self):
         fb = FastBoard.__new__(FastBoard)
@@ -119,6 +124,7 @@ class FastBoard:
         fb.to_move, fb.ply, fb.hash = self.to_move, self.ply, self.hash
         fb.moves_left, fb.locked = self.moves_left, self.locked
         fb.turn_start, fb.ko_hash = self.turn_start, self.ko_hash
+        fb.turn_pushes, fb.banned = self.turn_pushes, self.banned
         return fb
 
     def is_legal(self, src, d):
@@ -138,6 +144,8 @@ class FastBoard:
         if t2 < 0:
             return 3 if self.rules.push_off and o != self.to_move else 0
         if self.board[t2]:
+            return 0
+        if self.banned and src * 6 + d in self.banned and o != self.to_move:
             return 0
         if self.ko_hash is not None and self.moves_left == 1:
             # hash della posizione d'inizio del turno avversario che questa mossa creerebbe
@@ -194,6 +202,8 @@ class FastBoard:
         if kind == 3:
             self._remove_piece(dst)
         elif kind == 2:
+            if self.rules.no_pushback and self.board[dst] != me:
+                self.turn_pushes += (nbr[dst][d] * 6 + OPPOSITE[d],)
             self._move_piece(dst, nbr[dst][d])
         self._move_piece(src, dst)
         self.ply += 1
@@ -226,6 +236,7 @@ class FastBoard:
         if self.rules.ko:
             self.ko_hash = self.turn_start
         self.turn_start = self.hash
+        self.banned, self.turn_pushes = self.turn_pushes, ()
 
     def pass_turn(self):
         """Il passo chiude sempre il turno."""
@@ -352,16 +363,20 @@ def terminal_value(fb, winner, history, path):
 
 
 class MCTSBot:
-    """MCTSBot(rng, n_sim[, playout_limit]). Spec: 'mcts:2000' o 'mcts:2000:40'."""
+    """MCTSBot(rng, n_sim[, playout_limit]). Spec: 'mcts:2000' o 'mcts:2000:40'.
+
+    time_limit: secondi oltre i quali la ricerca si ferma anche prima di n_sim.
+    """
     name = "mcts"
 
     decisive = False
 
-    def __init__(self, rng=None, n_sim=500, playout_limit=None, c=1.4):
+    def __init__(self, rng=None, n_sim=500, playout_limit=None, c=1.4, time_limit=None):
         self.rng = rng or random.Random()
         self.n_sim = n_sim
         self.playout_limit = playout_limit
         self.c = c
+        self.time_limit = time_limit
         # dopo ogni choose(): (n_figli, quota visite 1a, quota 2a, valore stimato 1a),
         # None se la mossa era obbligata o vincente
         self.last_stats = None
@@ -371,6 +386,21 @@ class MCTSBot:
         moves = legal_moves(state)
         if len(moves) == 1:
             return moves[0]
+        win, children = self.search(state)
+        if win is not None:
+            return win
+        ranked = sorted(children, key=lambda ch: ch[1], reverse=True)
+        total = sum(ch[1] for ch in ranked)
+        second = ranked[1][1] if len(ranked) > 1 else 0
+        self.last_stats = (len(ranked), ranked[0][1] / total, second / total,
+                           ranked[0][2] / ranked[0][1])
+        return ranked[0][0]
+
+    def search(self, state):
+        """Ricerca dalla posizione `state` (non finita, con almeno una mossa).
+        Restituisce (mossa vincente, None) se chi muove vince subito, altrimenti
+        (None, [(mossa, visite, somma dei valori per chi muove), ...]) per i figli della
+        radice, con le mosse nel formato di game.Move (None per il passo)."""
         rng = self.rng
         root_fb = FastBoard(state)
         geo = root_fb.geo
@@ -381,10 +411,13 @@ class MCTSBot:
         root = Node(None, None, 0)
         root.open(root_fb, rng)
         if root.win_move is not None:
-            return self._to_move(geo, root.win_move)
+            return self._to_move(geo, root.win_move), None
         c, limit, decisive = self.c, self.playout_limit, self.decisive
         sqrt, log = math.sqrt, math.log
-        for _ in range(self.n_sim):
+        deadline = None if self.time_limit is None else time.perf_counter() + self.time_limit
+        for i in range(self.n_sim):
+            if deadline is not None and i & 63 == 63 and time.perf_counter() > deadline:
+                break
             fb = root_fb.copy()
             path = {}
             node = root
@@ -423,13 +456,8 @@ class MCTSBot:
                 node.visits += 1
                 node.value += value_a if node.mover == A else 1.0 - value_a
                 node = node.parent
-        ranked = sorted(root.children, key=lambda ch: ch.visits, reverse=True)
-        best = ranked[0]
-        total = sum(ch.visits for ch in ranked)
-        second = ranked[1].visits if len(ranked) > 1 else 0
-        self.last_stats = (len(ranked), best.visits / total, second / total,
-                           best.value / best.visits)
-        return self._to_move(geo, best.move)
+        return None, [(self._to_move(geo, ch.move), ch.visits, ch.value)
+                      for ch in root.children]
 
     @staticmethod
     def _to_move(geo, move):
@@ -448,5 +476,5 @@ class MCTSDecisiveBot(MCTSBot):
     name = "mctsd"
     decisive = True
 
-    def __init__(self, rng=None, n_sim=500, playout_limit=None, c=0.5):
-        super().__init__(rng, n_sim, playout_limit, c)
+    def __init__(self, rng=None, n_sim=500, playout_limit=None, c=0.5, time_limit=None):
+        super().__init__(rng, n_sim, playout_limit, c, time_limit)

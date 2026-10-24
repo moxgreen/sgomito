@@ -2,7 +2,7 @@
 
 Il browser non conosce le regole: riceve le mosse legali già con la cella d'arrivo
 (`to`) e quella dove finisce la pedina spinta (`pushed_to`, None oppure "off" se esce
-dal campo con push_off), le mosse vietate dal ko, le case e i traguardi.
+dal campo con push_off), le mosse vietate dal ko o da no_pushback, le case e i traguardi.
 Solo stdlib: hexpush resta senza dipendenze.
 """
 import dataclasses
@@ -40,14 +40,25 @@ def move_to_dict(geo, move, player=None):
 
 
 def ko_forbidden(state):
-    """Mosse che sarebbero legali senza il ko e che il ko vieta (lista di Move)."""
-    if state.result is not None or not state.rules.ko:
+    """Mosse che sarebbero legali senza il ko e senza no_pushback e che una delle due
+    regole vieta (lista di Move)."""
+    if state.result is not None or not (state.rules.ko or state.rules.no_pushback):
         return []
-    free = GameState(dataclasses.replace(state.rules, ko=False), state.board, state.to_move,
-                     state.ply, state.history, state.turn_keys, state.moves_left,
-                     state.locked, state.result, state.reason, state.last_move)
+    free = GameState(dataclasses.replace(state.rules, ko=False, no_pushback=False),
+                     state.board, state.to_move, state.ply, state.history, state.turn_keys,
+                     state.moves_left, state.locked, state.result, state.reason,
+                     state.last_move)
     allowed = set(legal_moves(state))
     return [m for m in legal_moves(free) if m is not PASS and m not in allowed]
+
+
+def forbidden_by(state, move):
+    """Quale regola vieta una mossa di ko_forbidden: 'pushback' o 'ko'."""
+    if (move.q, move.r, move.d) in state.banned:
+        dst = state.geo.nbr[(move.q, move.r)][move.d]
+        if state.board[dst] != state.to_move:
+            return "pushback"
+    return "ko"
 
 
 def state_to_dict(state):
@@ -71,7 +82,8 @@ def state_to_dict(state):
         "ply": state.ply,
         "legal": [move_to_dict(geo, m) for m in legal if m is not PASS],
         "must_pass": legal == [PASS],
-        "ko_forbidden": [move_to_dict(geo, m) for m in ko_forbidden(state)],
+        "ko_forbidden": [dict(move_to_dict(geo, m), rule=forbidden_by(state, m))
+                         for m in ko_forbidden(state)],
         "pieces": counts,
         "reached": goal_counts(state),
         "last_move": None if state.last_move is None

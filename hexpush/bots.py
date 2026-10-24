@@ -170,9 +170,10 @@ class PingPongBot(GreedyBot):
 
 
 from .mcts import MCTSBot, MCTSDecisiveBot  # noqa: E402  (mcts non dipende da bots)
+from .parallel import ParallelMCTSBot  # noqa: E402
 
 BOTS = {cls.name: cls for cls in (RandomBot, GreedyBot, TurtleBot, RusherBot, PingPongBot,
-                                  MCTSBot, MCTSDecisiveBot)}
+                                  MCTSBot, MCTSDecisiveBot, ParallelMCTSBot)}
 
 
 def make_bot(spec, rng):

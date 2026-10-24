@@ -81,6 +81,9 @@ senza conoscere la geometria delle regole.
 - Bot `mctsd` con il numero di simulazioni come difficoltà, per esempio:
   Facile 200, Medio 1000, Difficile 4000, Esperto 16000 (da tarare sui tempi reali
   del server; con CPython il nuovo albero fa ~0.1-0.4 s per 1000 simulazioni).
+- Livello Campione: `ParallelMCTSBot` (`hexpush/parallel.py`), alberi `mctsd`
+  indipendenti in processi pypy3 paralleli con un limite di tempo per mossa
+  (`HEXPUSH_CHAMPION_SECONDS`); il padre somma le visite delle mosse alla radice.
 - Il bot calcola fuori dal ciclo degli eventi (`asyncio.to_thread` o un worker); nel
   frattempo lo stato ha `"thinking": true` e la pagina mostra "sta pensando".
 - Le due mosse del bot vengono mostrate una alla volta, con una breve pausa.

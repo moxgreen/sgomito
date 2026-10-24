@@ -1,17 +1,25 @@
-"""WebSocket di una partita: riceve move/undo/resign, manda a tutti lo stato completo."""
+"""WebSocket di una partita: riceve move/undo/resign/rate, manda a tutti lo stato completo.
+Ogni cambiamento della partita viene anche salvato nel registro (records.py)."""
 import asyncio
 import logging
 
+from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.layers import get_channel_layer
 from django.conf import settings
 
-from .matches import MoveError, get_match
+from . import records
+from .matches import MoveError
 
 log = logging.getLogger(__name__)
 
 PID_COOKIE = "hexpush_pid"
-NOT_FOUND = 4404  # codice di chiusura: partita inesistente (o persa al riavvio del server)
+NOT_FOUND = 4404  # codice di chiusura: partita inesistente
+
+find_match = database_sync_to_async(records.find_match)
+get_player = database_sync_to_async(records.get_player)
+save_match = database_sync_to_async(records.save_match)
+save_rating = database_sync_to_async(records.save_rating)
 
 
 def group_name(match):
@@ -45,6 +53,7 @@ async def run_bot(match):
             if match.state is not state or match.result is not None:
                 break  # nel frattempo la partita è cambiata (abbandono)
             match.apply_move(move)
+            await save_match(match)
             if not match.bot_to_move():
                 break
             await broadcast(match)  # prima mossa del turno, la seconda è in arrivo
@@ -58,13 +67,18 @@ async def run_bot(match):
 
 class MatchConsumer(AsyncJsonWebsocketConsumer):
     async def connect(self):
-        self.match = get_match(self.scope["url_route"]["kwargs"]["match_id"])
+        self.match = await find_match(self.scope["url_route"]["kwargs"]["match_id"])
         if self.match is None:
             await self.accept()
             await self.close(code=NOT_FOUND)
             return
         self.pid = self.scope.get("cookies", {}).get(PID_COOKIE) or None
-        self.player = self.match.join(self.pid)
+        # siede solo chi ha già dato il proprio nome (pagina della partita)
+        person = await get_player(self.pid)
+        self.player, seated = self.match.join(
+            self.pid, person and person.name, person and person.pk)
+        if seated:
+            await save_match(self.match)
         self.group = group_name(self.match)
         await self.channel_layer.group_add(self.group, self.channel_name)
         await self.accept()
@@ -97,11 +111,16 @@ class MatchConsumer(AsyncJsonWebsocketConsumer):
                 match.undo(self.player)
             elif kind == "resign":
                 match.resign(self.player)
+            elif kind == "rate":
+                await save_rating(match, self.player, content.get("stars"),
+                                  content.get("comment", ""))
             else:
                 raise MoveError("Messaggio sconosciuto.")
         except MoveError as e:
             await self.send_error(str(e))
             return
+        if kind != "rate":
+            await save_match(match)
         await broadcast(match)
         start_bot(match)
 

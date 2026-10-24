@@ -5,7 +5,7 @@ mai modificato: apply() ne crea uno nuovo (serve per MCTS e per le ripetizioni).
 """
 from typing import NamedTuple
 
-from .board import DIR_NAMES, geometry, initial_board, other, row
+from .board import DIR_NAMES, OPPOSITE, geometry, initial_board, other, row
 from .rules import Ruleset
 
 
@@ -36,13 +36,17 @@ class GameState:
     result: None in corso, 'A' o 'B' vincitore, 'draw' patta.
     reason: 'goal', 'elimination', 'repetition' o 'max_plies'.
     last_move: la mossa che ha portato qui (None all'inizio o dopo un passo).
+    turn_pushes, banned (servono a no_pushback): le spinte inverse, come (q, r, d), delle
+    spinte di pedine avversarie fatte in questo turno da chi muove, e quelle vietate a chi
+    muove perché annullerebbero le spinte subite nell'ultimo turno avversario.
     """
 
     __slots__ = ("rules", "geo", "board", "to_move", "ply", "history", "turn_keys",
-                 "moves_left", "locked", "result", "reason", "last_move")
+                 "moves_left", "locked", "result", "reason", "last_move", "turn_pushes",
+                 "banned")
 
     def __init__(self, rules, board, to_move, ply, history, turn_keys, moves_left, locked,
-                 result, reason, last_move):
+                 result, reason, last_move, turn_pushes=(), banned=()):
         self.rules = rules
         self.geo = geometry(rules.R, rules.goal_wide)
         self.board = board
@@ -55,6 +59,8 @@ class GameState:
         self.result = result
         self.reason = reason
         self.last_move = last_move
+        self.turn_pushes = turn_pushes
+        self.banned = banned
 
     @property
     def key(self):
@@ -164,6 +170,11 @@ def legal_moves(state):
         ml = state.rules.moves_per_turn
         moves = [m for m in moves
                  if position_key(_moved_board(state, m), after, None, ml) != forbidden]
+    if state.banned:
+        # no_pushback: la pedina spinta non può rispingere indietro chi l'ha spinta,
+        # rimettendo le due pedine dov'erano
+        moves = [m for m in moves if not (m.push and (m.q, m.r, m.d) in state.banned
+                                          and board[nbr[(m.q, m.r)][m.d]] != player)]
     return moves or [PASS]
 
 
@@ -174,6 +185,13 @@ def apply(state, move):
     board = state.board if move is PASS else _moved_board(state, move)
     ply = state.ply + 1
     turn_keys = state.turn_keys
+    turn_pushes, banned = state.turn_pushes, state.banned
+    if state.rules.no_pushback and move is not PASS and move.push:
+        nbr = state.geo.nbr
+        dst = nbr[(move.q, move.r)][move.d]
+        behind = nbr[dst][move.d]
+        if behind is not None and state.board[dst] != state.to_move:
+            turn_pushes = turn_pushes + ((behind[0], behind[1], OPPOSITE[move.d]),)
     if move is not PASS and state.moves_left > 1:
         # stesso turno: la pedina appena mossa resta ferma per la seconda mossa
         to_move, moves_left = state.to_move, state.moves_left - 1
@@ -184,10 +202,11 @@ def apply(state, move):
         to_move, moves_left, locked = other(state.to_move), state.rules.moves_per_turn, None
         key = position_key(board, to_move, None, moves_left)
         turn_keys = turn_keys + (key,)
+        turn_pushes, banned = (), turn_pushes
     history = state.history + (key,)
     result, reason = _outcome(state.rules, state.geo, board, state.to_move, history, ply)
     return GameState(state.rules, board, to_move, ply, history, turn_keys, moves_left, locked,
-                     result, reason, move)
+                     result, reason, move, turn_pushes, banned)
 
 
 def goal_counts(state):

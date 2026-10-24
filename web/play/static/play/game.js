@@ -16,6 +16,8 @@ const REASONS = {
 };
 const KO_TEXT = "Vietata dal ko: rifarebbe la posizione d'inizio del turno precedente " +
   "(non si può disfare subito la mossa dell'avversario).";
+const PUSHBACK_TEXT = "Vietata: questa pedina è appena stata spinta e non può rispingere " +
+  "indietro chi l'ha spinta.";
 
 const $ = (id) => document.getElementById(id);
 const root = $("game");
@@ -26,7 +28,7 @@ const key = (q, r) => `${q},${r}`;
 let S = null;            // ultimo stato ricevuto
 let flip = false;        // true se chi guarda è A: la sua casa (r = -R) va in basso
 let moves = new Map();   // "q,r" -> mosse legali di quella pedina
-let koMoves = new Map(); // "q,r" -> mosse vietate dal ko
+let koMoves = new Map(); // "q,r" -> mosse vietate dal ko o dalla regola della rispinta
 let selected = null;     // "q,r" della pedina selezionata
 let hoverDest = null;    // mossa sotto il puntatore (pedina selezionata)
 let press = null;        // pressione in corso su una pedina: clic o trascinamento
@@ -37,6 +39,8 @@ let layers = {};
 let ws = null;
 let retry = 0;
 let hintTimer = null;
+let ratingShown = false;  // il dialogo del giudizio si apre da solo una volta
+let stars = 0;
 
 // --- geometria del disegno -----------------------------------------------------------
 
@@ -219,7 +223,7 @@ function drawMarks() {
   for (const m of koMoves.get(src) || []) {
     const [x, y] = px(...m.to);
     const g = mk("g", { class: "ko" }, layers.marks);
-    mk("title", {}, g).textContent = KO_TEXT;
+    mk("title", {}, g).textContent = m.rule === "pushback" ? PUSHBACK_TEXT : KO_TEXT;
     mk("polygon", { points: hexPoints(x, y, HEX * 0.86) }, g);
     const [a, b] = [corner(x, y, HEX * 0.6, 225), corner(x, y, HEX * 0.6, 45)];
     mk("line", { x1: a[0], y1: a[1], x2: b[0], y2: b[1] }, g);
@@ -334,56 +338,136 @@ function swatch(p) {
 function updatePanel() {
   const you = S.you;
   $("players").innerHTML = ["A", "B"].map((p) => {
-    const who = S.players[p];
+    const pl = S.players[p];
     const tag = p === you ? " <strong>(tu)</strong>" : "";
-    const on = S.online[p] ? "online" : "offline";
+    const on = pl.online ? "online" : "offline";
     const turn = !S.result && S.to_move === p ? " turn" : "";
-    const label = who === "libero" ? "posto libero" : who === "umano" ? "giocatore" : who;
+    const label = pl.kind === "libero" ? "posto libero" : escapeHtml(pl.name);
     return `<div class="player${turn}">${swatch(p)}<span>${NAMES[p]}${tag}</span>` +
       `<span class="who">${label}</span><span class="dot ${on}" title="${on}"></span></div>`;
   }).join("");
 
   let status = "";
-  if (S.result) status = "";
+  const mine = !S.result && you === S.to_move;
+  if (S.result) status = resultLine();
   else if (S.thinking) status = "Il computer sta pensando…";
-  else if (you && you === S.to_move) {
+  else if (mine) {
     if (S.locked) status = "Tocca a te: seconda mossa, con un'altra pedina.";
     else if (S.ply === 0 && S.rules.moves_per_turn === 2) status = "Tocca a te: mossa d'apertura (una sola).";
     else if (S.moves_left === 2) status = "Tocca a te: due mosse.";
     else status = "Tocca a te.";
   } else if (you) {
     const other = you === "A" ? "B" : "A";
-    status = S.players[other] === "libero" ? "In attesa dell'avversario…" : "Tocca all'avversario.";
+    status = S.players[other].kind === "libero" ? "In attesa dell'avversario…" : "Tocca all'avversario.";
   } else status = `Tocca a ${NAMES[S.to_move]}. Stai guardando la partita.`;
-  $("status").textContent = status;
-  $("status").classList.toggle("second", !!S.locked && you === S.to_move && !S.result);
+  // barra sopra il campo: piena nel proprio colore quando tocca a chi guarda
+  const cls = S.result ? "ended" : mine ? `mine turn-${you}${S.locked ? " second" : ""}` : "";
+  setBar(status, cls, S.result ? null : S.to_move);
 
   const res = $("result");
   if (S.result) {
-    let text;
-    if (S.result === "draw") text = "Patta";
-    else if (you) text = S.result === you ? "Hai vinto!" : "Hai perso";
-    else text = `Vince ${NAMES[S.result]}`;
-    res.innerHTML = `<strong>${text}</strong> — ${REASONS[S.reason] || S.reason}.` +
+    const why = reasonText();
+    res.innerHTML = `<strong>${resultText()}</strong>${why ? ` — ${why}` : ""}.` +
+      (S.rated ? ` Il tuo giudizio: ${"★".repeat(S.rated)}${"☆".repeat(5 - S.rated)}.` : "") +
       ` <a href="/">Nuova partita</a>`;
     res.hidden = false;
   } else res.hidden = true;
+  updateRating();
 
   $("undo").disabled = !S.can_undo || waiting;
   $("undo").hidden = !you || S.rules.moves_per_turn < 2 || !!S.result;
   $("resign").hidden = !you || !!S.result;
   const share = $("share");
-  if (share) share.hidden = !Object.values(S.players).includes("libero");
+  if (share) share.hidden = !Object.values(S.players).some((p) => p.kind === "libero");
 
   const r = S.rules;
   const parts = [`R=${r.R}`, `${r.N} pedine`, r.K > 1 ? `K=${r.K}` : null,
     r.goal_wide ? "traguardo largo" : null, r.push_off ? "spinta fuori" : null,
-    r.ko ? "ko" : null, `${r.moves_per_turn} mosse per turno`].filter(Boolean);
+    r.no_pushback ? "niente rispinta" : null, r.ko ? "ko" : null,
+    `${r.moves_per_turn} mosse per turno`].filter(Boolean);
   let extra = "";
   if (r.K > 1) extra += ` Al traguardo: ${NAMES.A} ${S.reached.A}/${r.K}, ${NAMES.B} ${S.reached.B}/${r.K}.`;
   if (r.push_off) extra += ` Pedine: ${NAMES.A} ${S.pieces.A}, ${NAMES.B} ${S.pieces.B}.`;
   $("rules-summary").textContent = `Regole: ${parts.join(", ")}. Semimossa ${S.ply}/${r.max_plies}.${extra}`;
 }
+
+function setBar(text, cls = "", player = null) {
+  const bar = $("status");
+  bar.className = `turn-bar ${cls}`.trim();
+  bar.innerHTML = (player ? swatch(player) : "") + `<span>${escapeHtml(text)}</span>`;
+}
+
+function resultText() {
+  const you = S.you;
+  if (S.result === "draw") return "Patta";
+  if (!you) return `Vince ${NAMES[S.result]}`;
+  if (S.resigned === you) return "Hai abbandonato";
+  return S.result === you ? "Hai vinto!" : "Hai perso";
+}
+
+// motivo della fine, detto dal punto di vista di chi guarda
+function reasonText() {
+  if (S.reason !== "resign") return REASONS[S.reason] || S.reason;
+  if (S.you === S.resigned) return null;
+  return S.you ? "l'avversario ha abbandonato" : `${NAMES[S.resigned]} ha abbandonato`;
+}
+
+function resultLine() {
+  const why = reasonText();
+  return why ? `${resultText()} — ${why}` : resultText();
+}
+
+function escapeHtml(text) {
+  const d = document.createElement("div");
+  d.textContent = text ?? "";
+  return d.innerHTML;
+}
+
+// --- giudizio sul divertimento -----------------------------------------------------
+
+function updateRating() {
+  const canRate = !!(S.result && S.you);
+  const btn = $("rate-open");
+  btn.hidden = !canRate;
+  btn.textContent = S.rated ? "Cambia giudizio" : "Dai un giudizio";
+  if (canRate && !S.rated && !ratingShown) {
+    ratingShown = true;
+    setTimeout(openRating, 900);  // dopo l'animazione dell'ultima mossa
+  }
+}
+
+function openRating() {
+  const dlg = $("rating");
+  if (dlg.open) return;
+  $("rating-title").textContent = resultLine();
+  setStars(S.rated || 0);
+  dlg.showModal();
+}
+
+function setStars(n) {
+  stars = n;
+  document.querySelectorAll("#rating .star").forEach((b) => {
+    const on = Number(b.dataset.stars) <= n;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-checked", String(Number(b.dataset.stars) === n));
+  });
+  const words = ["Scegli da 1 a 5 stelle.", "Per niente", "Poco", "Abbastanza", "Molto",
+    "Moltissimo"];
+  $("stars-label").textContent = words[n];
+  $("rating-send").disabled = n === 0;
+}
+
+document.querySelectorAll("#rating .star").forEach((b) => {
+  b.addEventListener("click", () => setStars(Number(b.dataset.stars)));
+});
+$("rating-form").addEventListener("submit", (ev) => {
+  if (!stars) { ev.preventDefault(); return; }
+  if (send({ type: "rate", stars, comment: $("rating-comment").value.trim() })) {
+    showHint("Grazie per il giudizio!");
+  }
+});
+$("rating-skip").addEventListener("click", () => $("rating").close());
+$("rate-open").addEventListener("click", openRating);
 
 function showHint(text, isError = false) {
   const h = $("hint");
@@ -430,8 +514,9 @@ svg.addEventListener("pointerdown", (ev) => {
     sendMove(dest);
     return;
   }
-  if (selected && koTo(selected, k)) {
-    showHint(KO_TEXT);
+  const banned = selected && koTo(selected, k);
+  if (banned) {
+    showHint(banned.rule === "pushback" ? PUSHBACK_TEXT : KO_TEXT);
     return;
   }
   selected = null;
@@ -498,7 +583,7 @@ function endPress(ev, cancelled) {
   else {
     selected = selected === p.src ? null : p.src;
     hoverDest = null;
-    if (selected && !moves.has(selected)) showHint("Questa pedina ha solo mosse vietate dal ko.");
+    if (selected && !moves.has(selected)) showHint("Questa pedina ha solo mosse vietate (ko o rispinta).");
     drawMarks();
   }
 }
@@ -542,10 +627,10 @@ function connect() {
   };
   ws.onclose = (ev) => {
     if (ev.code === 4404) {
-      $("status").textContent = "Partita inesistente: forse il server è stato riavviato.";
+      setBar("Partita inesistente: forse il server è stato riavviato.");
       return;
     }
-    $("status").textContent = "Connessione persa, mi ricollego…";
+    setBar("Connessione persa, mi ricollego…");
     setTimeout(connect, Math.min(10000, 1000 * 2 ** retry++));
   };
 }

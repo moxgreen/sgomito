@@ -1,4 +1,4 @@
-.PHONY: help venv run run-lan shell check test test-engine test-web
+.PHONY: help venv migrate run run-lan shell check test test-engine test-web registry
 .PHONY: simulate watch ladder clean
 
 # --- Configurazione (si può sovrascrivere: make run PORT=9000) ---
@@ -24,10 +24,12 @@ help:
 	@echo "Sviluppo web:"
 	@echo "  make help                 - Mostra questo elenco"
 	@echo "  make venv                 - Crea .venv e installa web/requirements.txt"
+	@echo "  make migrate              - Crea/aggiorna il database del registro (web/db.sqlite3)"
 	@echo "  make run                  - Avvia il server Django/Channels su http://$(HOST):$(PORT)/"
 	@echo "  make run-lan              - Avvia il server visibile in rete locale ($(LAN_IP):$(PORT))"
 	@echo "  make shell                - Apre la shell di Django"
 	@echo "  make check                - Controlli di configurazione di Django"
+	@echo "  make registry             - Scarica partite e giudizi in results/playtest_*.csv"
 	@echo ""
 	@echo "Test:"
 	@echo "  make test                 - Tutti i test (motore + web)"
@@ -56,10 +58,13 @@ $(VENV)/.installato: web/requirements.txt
 	$(PYTHON) -m pip install -q -r web/requirements.txt
 	@touch $@
 
-run: venv
+migrate: venv
+	$(PYTHON) web/manage.py migrate
+
+run: migrate
 	$(PYTHON) web/manage.py runserver $(HOST):$(PORT)
 
-run-lan: venv
+run-lan: migrate
 	@echo "Dal telefono: http://$(LAN_IP):$(PORT)/"
 	HEXPUSH_HOSTS=$(LAN_IP) $(PYTHON) web/manage.py runserver 0.0.0.0:$(PORT)
 
@@ -68,6 +73,10 @@ shell: venv
 
 check: venv
 	$(PYTHON) web/manage.py check
+
+# il registro del playtest in CSV, letto dal database (anche a server spento)
+registry: migrate
+	$(PYTHON) web/manage.py registro --out results/playtest
 
 # --- Test ---
 

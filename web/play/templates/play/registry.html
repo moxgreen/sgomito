@@ -1,0 +1,61 @@
+{% extends "play/base.html" %}
+{% block title %}Registro — Spinta{% endblock %}
+{% block content %}
+<div class="registry">
+  <h1>Registro del playtest</h1>
+  <p>{{ n_games }} partit{{ n_games|pluralize:'a,e' }}, {{ n_ended }} finit{{ n_ended|pluralize:'a,e' }},
+    {{ n_ratings }} giudiz{{ n_ratings|pluralize:'io,i' }}{% if mean %},
+    divertimento medio <strong>{{ mean|floatformat:2 }}</strong> ★{% endif %}.
+    Scarica: <a href="{% url 'registry_games_csv' %}">partite.csv</a> ·
+    <a href="{% url 'registry_ratings_csv' %}">giudizi.csv</a></p>
+
+  {% if n_ratings %}
+  <div class="dist">
+    {% for s, n in dist %}
+    <div class="dist-row"><span>{{ s }} ★</span>
+      <span class="bar" style="width: {% widthratio n dist_max 100 %}%"></span><span>{{ n }}</span></div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <h2>Per variante di regole</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Regole</th><th>Partite</th><th>Finite</th><th>Semimosse medie</th>
+      <th>Giudizi</th><th>Divertimento medio</th></tr></thead>
+    <tbody>
+    {% for v in variants %}
+    <tr><td>{{ v.rules }}</td><td>{{ v.games }}</td><td>{{ v.ended }}</td>
+      <td>{{ v.plies|floatformat:0|default:"—" }}</td><td>{{ v.ratings }}</td>
+      <td>{% if v.mean %}{{ v.mean|floatformat:2 }} ★{% else %}—{% endif %}</td></tr>
+    {% empty %}<tr><td colspan="6">Nessuna partita.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+
+  <h2>Partite</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Data</th><th>Partita</th><th>Arancio</th><th>Blu</th><th>Regole</th>
+      <th>Esito</th><th>Semimosse</th><th>Durata</th><th>Annulla</th><th>★ Arancio</th>
+      <th>★ Blu</th><th>Commenti</th></tr></thead>
+    <tbody>
+    {% for row in rows %}{% with g=row.game %}
+    <tr>
+      <td>{{ g.created|date:"d/m H:i" }}</td>
+      <td><a href="{% url 'match' g.id %}">{{ g.id }}</a>
+        <a href="{% url 'registry_game' g.id %}" class="note">json</a></td>
+      <td>{{ row.names.A|default:"—" }}</td>
+      <td>{{ row.names.B|default:"—" }}</td>
+      <td>{{ row.rules }}</td>
+      <td>{% if g.result == "draw" %}patta{% elif g.result == "A" %}vince Arancio{% elif g.result == "B" %}vince Blu{% else %}in corso{% endif %}
+        {% if row.reason %}<span class="note">({{ row.reason }})</span>{% endif %}</td>
+      <td>{{ g.plies }}</td>
+      <td>{% if row.duration %}{{ row.duration|floatformat:0 }} s{% endif %}</td>
+      <td>{{ g.undos }}</td>
+      <td>{% if row.stars.A %}{{ row.stars.A.stars }} ★{% endif %}</td>
+      <td>{% if row.stars.B %}{{ row.stars.B.stars }} ★{% endif %}</td>
+      <td class="comments">{% for r in g.ratings.all %}{% if r.comment %}<p><strong>{{ r.player.name }}:</strong> {{ r.comment }}</p>{% endif %}{% endfor %}</td>
+    </tr>
+    {% endwith %}{% empty %}<tr><td colspan="12">Nessuna partita.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endblock %}

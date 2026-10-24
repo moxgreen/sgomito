@@ -4,10 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Spinta{% endblock %}</title>
-  <link rel="stylesheet" href="{% static 'play/style.css' %}">
+  <link rel="stylesheet" href="{% static 'play/style.css' %}?v={{ asset_version }}">
 </head>
 <body>
-  <header class="top"><a href="{% url 'home' %}" class="brand">⬡ Spinta</a></header>
+  <header class="top"><a href="{% url 'home' %}" class="brand">⬡ Spinta</a>
+    <nav><a href="{% url 'home' %}" class="primary">Nuova partita</a><a href="{% url 'registry' %}">Registro</a></nav></header>
   <main>{% block content %}{% endblock %}</main>
 </body>
 </html>

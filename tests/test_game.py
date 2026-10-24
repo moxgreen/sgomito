@@ -238,6 +238,19 @@ class TestTwoMoves(unittest.TestCase):
             s = apply(s, m)
         self.assertIn(Move(1, -2, W, True), legal_moves(s))
 
+    def test_no_pushback_two_moves(self):
+        # con no_pushback A non può rispingere nessuna delle due pedine, neanche la prima
+        rules = Ruleset(moves_per_turn=2, ko=True, no_pushback=True)
+        cells = board_of(A=[(0, 0), (0, -2)], B=[(-1, 0), (-1, -2)])
+        s = from_board(rules, cells, to_move="B")
+        s = apply(s, Move(-1, 0, E, True))
+        s = apply(s, Move(-1, -2, E, True))
+        moves = legal_moves(s)
+        self.assertNotIn(Move(1, 0, W, True), moves)
+        self.assertNotIn(Move(1, -2, W, True), moves)
+        s = apply(s, Move(1, 0, SW, False))
+        self.assertNotIn(Move(1, -2, W, True), legal_moves(s))  # vale per tutto il turno
+
 
 class TestEnd(unittest.TestCase):
     def test_win_on_reaching_enemy_home(self):
@@ -312,13 +325,37 @@ class TestEnd(unittest.TestCase):
             self.assertEqual(undo in moves, not ko)
             self.assertIn(Move(2, 0, E, False), moves)  # le altre mosse restano
 
+    def test_no_pushback(self):
+        rules = Ruleset(no_pushback=True)
+        cells = board_of(A=[(0, 0), (0, -3)], B=[(1, 0), (-2, 2)])
+        back = Move(2, 0, W, True)
+        s = apply(from_board(rules, cells), Move(0, 0, E, True))   # A (1,0), B (2,0)
+        moves = legal_moves(s)
+        self.assertNotIn(back, moves)
+        self.assertIn(Move(2, 0, E, False), moves)
+        # il divieto vale solo per il turno subito dopo la spinta
+        s = apply(s, Move(-2, 2, E, False))
+        s = apply(s, Move(0, -3, E, False))
+        self.assertIn(back, legal_moves(s))
+        # senza la regola (e senza ko) la rispinta è permessa subito
+        s = apply(from_board(Ruleset(), cells), Move(0, 0, E, True))
+        self.assertIn(back, legal_moves(s))
+
+    def test_no_pushback_own_push(self):
+        # spingere una propria pedina non vieta nulla all'avversario
+        rules = Ruleset(no_pushback=True)
+        cells = board_of(A=[(0, 0), (1, 0)], B=[(3, -2)])
+        s = apply(from_board(rules, cells), Move(0, 0, E, True))   # A (1,0), A (2,0)
+        self.assertEqual(s.banned, ())
+
 
 class TestRandomGames(unittest.TestCase):
     def test_invariants(self):
         rng = random.Random(1)
         configs = [Ruleset(), Ruleset(R=3, N=3), Ruleset(R=5, N=8, K=2),
                    Ruleset(push_own=False, ko=True, goal_wide=True), Ruleset(push_off=True),
-                   Ruleset(moves_per_turn=2, ko=True)]
+                   Ruleset(moves_per_turn=2, ko=True),
+                   Ruleset(moves_per_turn=2, ko=True, no_pushback=True)]
         for rules in configs:
             geo = geometry(rules.R, rules.goal_wide)
             for _ in range(30):
