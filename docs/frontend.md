@@ -90,6 +90,12 @@ senza conoscere la geometria delle regole.
   `serialize.search_state_to_dict`. Il browser risponde
   `{"type": "bot_move", "ply", "q", "r", "d"}`. Il server la valida come le mosse
   umane; una risposta con un `ply` superato si ignora. Chi guarda non riceve `bot`.
+- Ogni Web Worker tiene l'albero della sua ultima ricerca (`search(..., {keep})` in
+  `mcts.js`): se la nuova posizione ne discende (la seconda mossa del turno, o la prima
+  dopo le due dell'avversario: al più 4 semimosse, seguendo `history`), la ricerca
+  riparte da quel sottoalbero e `n_sim` / il tempo contano solo le simulazioni nuove.
+  Misurato col motore JS: a 13500 simulazioni per albero il riuso scatta nel 94% delle
+  ricerche e aggiunge in media il 25% di visite (19% e 15% a 4000).
 - Le due mosse del bot vengono mostrate una alla volta: il browser aspetta almeno
   `delay` secondi prima di mandarle.
 

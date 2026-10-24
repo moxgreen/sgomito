@@ -16,7 +16,7 @@ from pathlib import Path
 from hexpush.board import DIRS, OPPOSITE, geometry, other
 from hexpush.bots import winning_replies
 from hexpush.game import PASS, apply, from_board, immediate_outcomes, legal_moves, new_game
-from hexpush.mcts import POLICIES, MCTSDecisiveBot, TimePolicy
+from hexpush.mcts import POLICIES, FastBoard, MCTSDecisiveBot, TimePolicy
 from hexpush.rules import Ruleset
 from hexpush.serialize import cell_list, key_to_list, search_state_to_dict
 
@@ -146,6 +146,25 @@ class TestJsEngine(unittest.TestCase):
             s = apply(s, rng.choice(legal_moves(s)))
         self.assert_node_ok(cases)
 
+    def test_tree_reuse(self):
+        """Ricerche con lo stesso keep lungo partite casuali (una e due mosse per turno):
+        il sottoalbero ereditato deve essere quello della posizione nuova. Le posizioni
+        `fresh` (di nuovo l'inizio, o un'altra partita) non devono riusare nulla."""
+        rng = random.Random(11)
+        cases = []
+        for rules in (CANDIDATE, Ruleset(ko=True), SHORT[5], SHORT[3]):
+            steps = []
+            s = new_game(rules)
+            while s.result is None and s.ply < 30:
+                steps.append({"state": search_state_to_dict(s),
+                              "legal": [None if m is PASS else mv(m) for m in legal_moves(s)]})
+                s = apply(s, rng.choice(legal_moves(s)))
+            first = dict(steps[0], fresh=True)
+            steps += [first, first]  # stessa posizione, stessa semimossa: nessun riuso
+            cases.append({"kind": "reuse", "label": str(rules), "steps": steps, "n_sim": 300,
+                          "min_reused": 5})
+        self.assert_node_ok(cases)
+
     def test_time_policy(self):
         """Stesse decisioni di TimePolicy.stop, su statistiche vere (prese a metà di
         ricerche reali) e inventate, comprese parità di visite e di valori."""
@@ -170,16 +189,29 @@ class TestJsEngine(unittest.TestCase):
                               "budget": budget, "stats": stats,
                               "stop": policy.stop(done, budget, stats)})
         self.assertTrue(any(t["stop"] for t in tests) and not all(t["stop"] for t in tests))
-        cases = [{"kind": "policy", "tests": tests}]
+        # fattore di fase: stesse distanze dal traguardo lungo una partita
+        scales = []
+        phased = [p for p in policies if p.phase]
+        self.assertTrue(phased)
+        s = new_game(CANDIDATE)
+        while s.result is None:
+            for policy in phased:
+                scales.append({"policy": dataclasses.asdict(policy),
+                               "state": search_state_to_dict(s),
+                               "scale": policy.scale(FastBoard(s))})
+            s = apply(s, rng.choice(legal_moves(s)))
+        self.assertGreater(len({sc["scale"] for sc in scales}), 2)
+        cases = [{"kind": "policy", "tests": tests, "scales": scales}]
         # ricerche vere con le politiche: simulazioni nei limiti
         s = new_game(CANDIDATE)
         rng = random.Random(4)
         for _ in range(12):
             s = apply(s, rng.choice(legal_moves(s)))
         for name, policy in POLICIES.items():
-            hi = policy.max_factor * 1000 if policy.extend else 1000
+            budget = policy.scale(FastBoard(s)) * 1000
+            hi = policy.max_factor * budget if policy.extend else budget
             case = search_case(s, legal_moves(s), f"politica {name}", n_sim=1000)
-            case.update(policy=dataclasses.asdict(policy), sims=[policy.min_factor * 1000, hi])
+            case.update(policy=dataclasses.asdict(policy), sims=[policy.min_factor * budget, hi])
             cases.append(case)
         self.assert_node_ok(cases)
 
@@ -288,6 +320,24 @@ class TestJsPrior(unittest.TestCase):
         self.assertTrue({"end_opp_win", "end_my_threats", "mid_my_win", "mid_opp_win", "loses",
                          "push_enemy", "enemy_d1", "own_pushed_fwd", "vul_dst"} <= seen,
                         seen)
+        self.assert_node_ok(cases)
+
+    def test_tree_reuse(self):
+        """Riuso dell'albero (keep) con il prior, come TestJsEngine.test_tree_reuse; un
+        albero UCT non si riusa in una ricerca col prior."""
+        rng = random.Random(12)
+        cases = []
+        for rules in (CANDIDATE, Ruleset(ko=True)):
+            steps = []
+            s = new_game(rules)
+            while s.result is None and s.ply < 30:
+                steps.append({"state": search_state_to_dict(s),
+                              "legal": [None if m is PASS else mv(m) for m in legal_moves(s)]})
+                s = apply(s, rng.choice(legal_moves(s)))
+            first = dict(steps[0], fresh=True)
+            steps += [first, first]
+            cases.append({"kind": "reuse", "label": f"prior {rules}", "steps": steps,
+                          "n_sim": 300, "min_reused": 5, "opts": {"prior": True}})
         self.assert_node_ok(cases)
 
     def test_search(self):

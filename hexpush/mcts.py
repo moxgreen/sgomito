@@ -379,11 +379,22 @@ class TimePolicy:
       extend * le visite della prima. Durante l'estensione early vale rispetto al massimo.
       0 = mai.
     min_factor: mai meno di min_factor * B simulazioni.
+    phase: fattori per B secondo la distanza minima dal traguardo (di una pedina di
+      chiunque): phase[d - 1] per distanza d, l'ultimo per tutte le distanze maggiori.
+      Vuoto = B uguale ovunque.
     """
     early: float = 0.0
     extend: float = 0.0
     min_factor: float = 0.25
     max_factor: float = 3.0
+    phase: tuple = ()
+
+    def scale(self, fb):
+        """Fattore per B nella posizione fb (FastBoard)."""
+        if not self.phase:
+            return 1.0
+        d = goal_distance(fb)
+        return self.phase[min(d, len(self.phase)) - 1]
 
     def stop(self, done, budget, stats):
         """True se la ricerca può fermarsi dopo `done` simulazioni. stats: (visite,
@@ -408,12 +419,21 @@ class TimePolicy:
         return self.early > 0 and v1 - v2 > self.early * (target - done)
 
 
-# politiche da confrontare con thinktime.py match
+def goal_distance(fb):
+    """File che mancano al traguardo alla pedina più vicina, di chiunque sia."""
+    cells, R = fb.geo.cells, fb.rules.R
+    return min([R - cells[i][1] for i in fb.pieces[A]] + [cells[i][1] + R for i in fb.pieces[B]])
+
+
+# politiche da confrontare con thinktime.py match. phase: più calcolo a distanza 3-5
+# dal traguardo, dove una ricerca 8 volte più lunga cambia di più la mossa
+# (results/thinktime_b1000_riassunto.txt); in media sulle partite il fattore è ~1
 POLICIES = {
     "early": TimePolicy(early=1.0),
     "stop50": TimePolicy(early=0.5),
     "unst": TimePolicy(early=1.0, extend=0.5),
     "stop50unst": TimePolicy(early=0.5, extend=0.5),
+    "phase": TimePolicy(early=1.0, phase=(0.7, 0.9, 1.3, 1.5, 1.3, 0.8)),
 }
 
 
@@ -477,12 +497,16 @@ class MCTSBot:
             return self._to_move(geo, root.win_move), None
         c, limit, decisive = self.c, self.playout_limit, self.decisive
         sqrt, log = math.sqrt, math.log
-        policy, budget, n_max = self.policy, self.n_sim, self.n_sim
+        policy = self.policy
+        scale = 1.0 if policy is None else policy.scale(root_fb)
+        budget = scale * self.n_sim
         start = time.perf_counter()
         # solo l'estensione può superare il budget
         stretch = policy.max_factor if policy is not None and policy.extend else 1
-        n_max = int(stretch * self.n_sim)
-        deadline = None if self.time_limit is None else start + stretch * self.time_limit
+        n_max = int(stretch * budget)
+        deadline = None
+        if self.time_limit is not None:
+            deadline = start + stretch * scale * self.time_limit
         i = 0
         for i in range(n_max):
             if i & 63 == 63:
@@ -491,7 +515,7 @@ class MCTSBot:
                 if policy is not None:
                     if self.time_limit is not None:
                         rate = i / max(time.perf_counter() - start, 1e-9)
-                        budget = min(self.n_sim, rate * self.time_limit)
+                        budget = scale * min(self.n_sim, rate * self.time_limit)
                     if policy.stop(i, budget, [(ch.visits, ch.value) for ch in root.children]):
                         break
             fb = root_fb.copy()
