@@ -1,0 +1,53 @@
+4016 posizioni di allenamento, 963 di prova (20 partite), 38 feature
+uniforme: prova perdita 2.8814  accordo 6.0%
+iter   25  allenamento 2.5178  prova 2.4973  accordo 40.8%  prob. della più visitata 0.147
+iter   50  allenamento 2.4905  prova 2.4715  accordo 41.5%  prob. della più visitata 0.169
+iter   75  allenamento 2.4869  prova 2.4696  accordo 41.7%  prob. della più visitata 0.172
+iter  100  allenamento 2.4862  prova 2.4689  accordo 42.3%  prob. della più visitata 0.171
+iter  125  allenamento 2.4861  prova 2.4686  accordo 42.3%  prob. della più visitata 0.171
+iter  150  allenamento 2.4860  prova 2.4686  accordo 42.3%  prob. della più visitata 0.172
+iter  175  allenamento 2.4860  prova 2.4686  accordo 42.3%  prob. della più visitata 0.172
+iter  200  allenamento 2.4860  prova 2.4686  accordo 42.3%  prob. della più visitata 0.172
+iter  225  allenamento 2.4860  prova 2.4686  accordo 42.3%  prob. della più visitata 0.172
+iter  250  allenamento 2.4860  prova 2.4686  accordo 42.3%  prob. della più visitata 0.172
+iter  275  allenamento 2.4860  prova 2.4686  accordo 42.3%  prob. della più visitata 0.172
+iter  300  allenamento 2.4860  prova 2.4686  accordo 42.3%  prob. della più visitata 0.172
+  mid_opp_win      -2.654
+  end_opp_win      -2.473
+  mid_my_win       +1.857
+  dst_d5           -1.279
+  enemy_d2         +1.269
+  dst_d1           +1.244
+  dst_d4           -1.186
+  src_d8           -0.988
+  enemy_d1         +0.951
+  dst_d6           -0.943
+  enemy_fwd        -0.885
+  src_d4           +0.843
+  src_d5           +0.830
+  dir_back         -0.771
+  dst_d3           -0.757
+  enemy_back       +0.739
+  enemy_d3p        -0.698
+  own_pushed_fwd   +0.695
+  src_d1           -0.596
+  push_enemy       +0.588
+  dir_fwd          +0.544
+  src_d3           +0.517
+  src_d6           +0.492
+  end_my_threats   +0.487
+  dst_d8           +0.464
+  loses            -0.402
+  dst_d7           -0.374
+  enemy_side       -0.327
+  dir_side         -0.287
+  dst_d2           +0.284
+  push_own         +0.230
+  adj_enemy        +0.218
+  src_d2           -0.190
+  vul_dst          -0.171
+  src_d7           -0.138
+  vul_src          +0.059
+  adj_own          +0.048
+  dst_d0           +0.000
+pesi scritti in /Users/imoliner/prj/sgomito/.claude/worktrees/gallant-varahamihira-595ca3/hexpush/../web/play/static/play/mcts.js

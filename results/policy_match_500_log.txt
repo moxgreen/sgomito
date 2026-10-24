@@ -1,0 +1,17 @@
+Ruleset(R=4, N=5, K=1, goal_wide=False, push_own=True, ko=True, no_pushback=True, push_off=False, moves_per_turn=2, max_plies=200)
+prior {'cPuct': 2.0, 'fpu': 0.0, 'priorTemp': 1.0}
+5 incontri, 500 partite, 6 processi
+[   237 s] finito jsp:500 vs js:8000 (104/500 partite)
+[   337 s] finito jsp:500 vs js:4000 (207/500 partite)
+[   392 s] finito jsp:500 vs js:2000 (303/500 partite)
+[   430 s] finito jsp:500 vs js:1000 (403/500 partite)
+[   456 s] finito jsp:500 vs js:500 (500/500 partite)
+
+Ruleset(R=4, N=5, K=1, goal_wide=False, push_own=True, ko=True, no_pushback=True, push_off=False, moves_per_turn=2, max_plies=200)
+
+   guidato       puro    n    V    S    P   punti    Elo        IC 95% semim. us/sim g. us/sim p.
+   jsp:500     js:500  100   91    9    0   91.0%   +402   +307.. +582   41.3    1879.6    3545.3
+   jsp:500    js:1000  100   85   15    0   85.0%   +301   +220.. +424   38.8    1124.1    2602.3
+   jsp:500    js:2000  100   78   22    0   78.0%   +220   +146.. +317   43.9     478.0     553.0
+   jsp:500    js:4000  100   63   37    0   63.0%    +92    +25.. +168   44.1    2945.8    1699.2
+   jsp:500    js:8000  100   36   64    0   36.0%   -100   -176..  -32   45.9      91.9    2544.6

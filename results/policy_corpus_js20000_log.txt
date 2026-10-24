@@ -1,0 +1,24 @@
+Ruleset(R=4, N=5, K=1, goal_wide=False, push_own=True, ko=True, no_pushback=True, push_off=False, moves_per_turn=2, max_plies=200)
+mcts.js 20000: 240 partite da giocare (0 già nel file), 6 processi
+[   224 s] 5/240
+[   391 s] 10/240
+[   584 s] 15/240
+[   772 s] 20/240
+[   959 s] 25/240
+[  1186 s] 30/240
+[  1432 s] 35/240
+[  1541 s] 40/240
+[  1705 s] 45/240
+[  1845 s] 50/240
+[  1941 s] 55/240
+[  2090 s] 60/240
+[  2146 s] 65/240
+[  2214 s] 70/240
+[  2287 s] 75/240
+[  2355 s] 80/240
+[  2421 s] 85/240
+[  2463 s] 90/240
+[  2508 s] 95/240
+[  2576 s] 100/240
+/opt/homebrew/Cellar/pypy3.12/8.0.1/libexec/lib/pypy3.12/multiprocessing/resource_tracker.py:322: UserWarning: resource_tracker: There appear to be 5 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '

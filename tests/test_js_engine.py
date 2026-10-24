@@ -13,7 +13,7 @@ import subprocess
 import unittest
 from pathlib import Path
 
-from hexpush.board import geometry
+from hexpush.board import DIRS, OPPOSITE, geometry, other
 from hexpush.bots import winning_replies
 from hexpush.game import PASS, apply, from_board, immediate_outcomes, legal_moves, new_game
 from hexpush.mcts import POLICIES, MCTSDecisiveBot, TimePolicy
@@ -37,6 +37,7 @@ SHORT = [Ruleset(R=3, N=2, max_plies=60), Ruleset(R=3, N=2, ko=True, max_plies=6
          Ruleset(R=3, N=1, max_plies=80),
          Ruleset(R=3, N=2, K=2, push_off=True, moves_per_turn=2, ko=True, max_plies=80)]
 CANDIDATE = Ruleset(ko=True, no_pushback=True, moves_per_turn=2)  # quella del sito
+N_FEATURES = 38  # mcts.FEATURE_NAMES
 
 
 def node_version():
@@ -180,6 +181,139 @@ class TestJsEngine(unittest.TestCase):
             case = search_case(s, legal_moves(s), f"politica {name}", n_sim=1000)
             case.update(policy=dataclasses.asdict(policy), sims=[policy.min_factor * 1000, hi])
             cases.append(case)
+        self.assert_node_ok(cases)
+
+
+def reference_features(state, move):
+    """Feature di mcts.moveFeatures ricalcolate con game.py: le minacce con legal_moves e
+    immediate_outcomes sulle posizioni dopo la mossa. Vale con no_pushback spento e due
+    mosse per turno, dove la legalità semplificata del JS coincide con quella vera."""
+    rules, geo = state.rules, state.geo
+    me, opp = state.to_move, other(state.to_move)
+    R = rules.R
+    nbr = geo.nbr
+    src = (move.q, move.r)
+    dst = nbr[src][move.d]
+
+    def dist(p, cell):
+        return R - cell[1] if p == "A" else cell[1] + R
+
+    def pushers(board, x, o):
+        n = 0
+        for e in range(6):
+            y, behind = nbr[x][e], nbr[x][OPPOSITE[e]]
+            n += y is not None and board.get(y) == o and behind is not None and behind not in board
+        return n
+
+    def wins(board, p, locked=None, cap=1):
+        s = from_board(rules, board, p)
+        if s.result is not None:
+            return None
+        n = sum(o == 1 for m, o in zip(legal_moves(s), immediate_outcomes(s, legal_moves(s)))
+                if m is not PASS and (m.q, m.r) != locked)
+        return min(n, cap)
+
+    f = dict.fromkeys(["push_own", "push_enemy", "own_pushed_fwd", "enemy_back", "enemy_side",
+                       "enemy_fwd", "enemy_d1", "enemy_d2", "enemy_d3p", "adj_enemy",
+                       "adj_own", "loses"], 0)
+    dr = DIRS[move.d][1] * (1 if me == "A" else -1)
+    for name, flag in (("dir_fwd", dr > 0), ("dir_side", dr == 0), ("dir_back", dr < 0)):
+        f[name] = int(flag)
+    for k in range(1, 9):
+        f[f"src_d{k}"] = int(min(max(dist(me, src), 1), 8) == k)
+    for k in range(9):
+        f[f"dst_d{k}"] = int(min(max(dist(me, dst), 0), 8) == k)
+    f["vul_src"] = pushers(state.board, src, opp)
+    if move.push:
+        if state.board[dst] == me:
+            f["push_own"], f["own_pushed_fwd"] = 1, int(dr > 0)
+        else:
+            f["push_enemy"] = 1
+            f["enemy_back" if dr > 0 else "enemy_fwd" if dr < 0 else "enemy_side"] = 1
+            ed = dist(opp, dst)
+            f["enemy_d1" if ed <= 1 else "enemy_d2" if ed == 2 else "enemy_d3p"] = 1
+    after = apply(state, move)
+    board = after.board
+    f["loses"] = int(any(owner == opp and cell in geo.goal[opp] for cell, owner in board.items()))
+    for y in nbr[dst]:
+        if y is not None and y in board:
+            f["adj_enemy" if board[y] == opp else "adj_own"] += y != dst
+    f["vul_dst"] = pushers(board, dst, opp)
+    if after.result is not None:
+        return f  # partita finita: le minacce non si confrontano
+    if state.moves_left == 1:
+        f["end_opp_win"] = wins(board, opp)
+        f["end_my_threats"] = wins(board, me, cap=2)
+        f["mid_my_win"] = f["mid_opp_win"] = 0
+    else:
+        moves = legal_moves(after)
+        f["mid_my_win"] = int(any(o == 1 for o in immediate_outcomes(after, moves)))
+        f["mid_opp_win"] = wins(board, opp)
+        f["end_opp_win"] = f["end_my_threats"] = 0
+    return f
+
+
+@unittest.skipIf(node_version() < 22, "serve node >= 22 per il motore JavaScript")
+class TestJsPrior(unittest.TestCase):
+    """Policy e PUCT di mcts.js (opzione prior, spenta di default)."""
+
+    def assert_node_ok(self, cases):
+        out = run_node(cases)
+        self.assertEqual(out["errors"], [])
+        self.assertGreater(out["checked"], 0)
+
+    def test_features(self):
+        rng = random.Random(11)
+        cases, seen = [], set()
+        for rules in (Ruleset(ko=True, no_pushback=False, moves_per_turn=2),
+                      Ruleset(R=3, N=3, ko=True, no_pushback=False, moves_per_turn=2)):
+            for g in range(12):
+                s = new_game(rules)
+                while s.result is None:
+                    moves = [m for m in legal_moves(s) if m is not PASS]
+                    if moves and s.ply % 3 == g % 3:
+                        expect = []
+                        for m in moves:
+                            values = reference_features(s, m)
+                            seen.update(k for k, v in values.items() if v)
+                            expect.append({"move": mv(m), "values": values})
+                        cases.append({"kind": "features", "label": f"{rules} ply {s.ply}",
+                                      "state": search_state_to_dict(s), "expect": expect,
+                                      "n_features": N_FEATURES,
+                                      "weights": [rng.uniform(-2, 2)
+                                                  for _ in range(N_FEATURES)],
+                                      "temp": rng.choice([0.5, 1, 2])})
+                    s = apply(s, rng.choice(legal_moves(s)))
+        # le minacce devono comparire davvero nelle posizioni controllate
+        self.assertTrue({"end_opp_win", "end_my_threats", "mid_my_win", "mid_opp_win", "loses",
+                         "push_enemy", "enemy_d1", "own_pushed_fwd", "vul_dst"} <= seen,
+                        seen)
+        self.assert_node_ok(cases)
+
+    def test_search(self):
+        """Con il prior: vittorie immediate, la difesa, posizioni qualsiasi; visite e
+        determinismo come la ricerca pura (checkSearch)."""
+        cases = []
+        flat = {"prior": True, "weights": [0.0] * N_FEATURES}
+        s = from_board(Ruleset(), {(0, 3): "A", (-3, 0): "A", (0, -1): "B", (1, -1): "B"})
+        moves = legal_moves(s)
+        wins = [m for m, o in zip(moves, immediate_outcomes(s, moves)) if o == 1]
+        cases.append(dict(search_case(s, wins, "vittoria immediata"), opts={"prior": True}))
+        s = from_board(Ruleset(), {(0, -4): "A", (2, 1): "A", (0, -3): "B", (-2, 3): "B"})
+        safe = [m for m in legal_moves(s) if winning_replies(apply(s, m)) == 0]
+        for seed in range(3):
+            for opts in ({"prior": True}, dict(flat, cPuct=3.0, fpu=0.2)):
+                cases.append(dict(search_case(s, safe, "difesa", n_sim=500, seed=seed),
+                                  opts=opts))
+        rng = random.Random(3)
+        s = new_game(CANDIDATE)
+        while s.result is None and s.ply < 40:
+            if s.ply % 3 == 0:
+                cases.append(dict(search_case(s, legal_moves(s), f"partita ply {s.ply}",
+                                              n_sim=200, seed=s.ply),
+                                  opts=dict(flat, priorTemp=2.0) if s.ply % 2 else
+                                  {"prior": True}))
+            s = apply(s, rng.choice(legal_moves(s)))
         self.assert_node_ok(cases)
 
 

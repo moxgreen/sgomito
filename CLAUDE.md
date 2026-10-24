@@ -170,13 +170,17 @@ hexpush/
   simulate.py    # CLI: --R --N --K ... --games --botA --botB --seed, scrive CSV
   sweep.py       # griglia di parametri, chiama simulate, aggrega risultati
   ladder.py      # curva a raddoppi MCTS (docs/curva_raddoppi.md), --against BOT
+  jsbot.py       # bot che cerca con mcts.js in un processo node (jsserver.mjs)
+  policy.py      # policy appresa per il prior di mcts.js: corpus, feature, train, match (docs/policy_prior.md)
   watch.py       # guarda una partita in ASCII
 tests/
   test_game.py   # mosse legali, spinte, bordo, vittoria, ripetizione
   test_bots.py   # bot, e coerenza tra FastBoard e il motore di riferimento
   test_js_engine.py  # coerenza del motore JS del browser (tests/js/check_engine.mjs, node)
+  test_policy.py     # allenamento della policy
 web/play/static/play/
-  mcts.js        # porting di FastBoard + MCTS: il computer gioca nel browser
+  mcts.js        # porting di FastBoard + MCTS: il computer gioca nel browser; opzione prior (PUCT
+                 # con la policy appresa), spenta di default
   computer.js    # Web Worker paralleli, somma delle visite (come parallel.py)
 ```
 
@@ -247,6 +251,12 @@ uniformemente.
    (restano solo casi in cui sulla cella c'è ormai una pedina propria); Greedy contro
    Greedy: semimosse 38 → 30, spinte 66% → 54% delle mosse, A 47% in entrambi i casi.
    **Le misure MCTS del punto 5 sono senza `no_pushback`: vanno rifatte.**
+
+7. **Policy appresa come prior** (`docs/policy_prior.md`, `results/policy_*`): regressione
+   logistica su 38 feature locali delle mosse, allenata sulle visite di `mcts.js` a 20000
+   simulazioni, usata come prior PUCT (opzione `prior` di `mcts.js`, spenta di default).
+   Guidato 500 = puro ~5600 (2.5 raddoppi); guidato 2000 contro puro 16000 / 32000 =
+   55% / 51% (4-5 raddoppi). Costo ~1.4x per simulazione.
 
 Candidato attuale: **v1 + `ko` + `no_pushback` + `moves_per_turn=2`** (regole del sito web). Secondo il protocollo si può
 passare agli umani e a Django. Da tenere d'occhio: leggero vantaggio di A (53.8%).
