@@ -18,9 +18,14 @@ from hexpush.board import other
 from hexpush.game import PASS, apply, legal_moves, new_game
 from hexpush.serialize import move_to_dict, search_state_to_dict, state_to_dict
 
+# gestione del tempo del computer (mcts.TimePolicy, in JSON), uguale per tutti i livelli:
+# None = sempre il budget pieno
+TIME_POLICY = None
+
 
 def mcts_level(name, n_sim):
-    return name, f"{n_sim} simulazioni", {"n_sim": n_sim, "time_limit": None, "workers": 1}
+    return name, f"{n_sim} simulazioni", {"n_sim": n_sim, "time_limit": None, "workers": 1,
+                                         "policy": TIME_POLICY}
 
 
 def champion_level():
@@ -28,7 +33,7 @@ def champion_level():
     la forza dipende dal dispositivo di chi gioca."""
     seconds = settings.HEXPUSH_CHAMPION_SECONDS
     return ("Campione", f"{seconds:g} s per mossa su tutti i core",
-            {"n_sim": 10**7, "time_limit": seconds, "workers": "auto"})
+            {"n_sim": 10**7, "time_limit": seconds, "workers": "auto", "policy": TIME_POLICY})
 
 
 # chiave -> (nome, descrizione, parametri della ricerca nel browser: simulazioni per

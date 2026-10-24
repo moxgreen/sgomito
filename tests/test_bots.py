@@ -92,8 +92,9 @@ class TestFastBoard(unittest.TestCase):
                    Ruleset(R=3, N=3, push_off=True, max_plies=60),
                    Ruleset(R=3, N=2, moves_per_turn=2, max_plies=60),
                    Ruleset(R=3, N=3, moves_per_turn=2, ko=True, max_plies=60),
-                   # con no_pushback le ripetizioni sono rare: campo minimo, una pedina
-                   Ruleset(R=2, N=1, max_plies=60)]
+                   # con no_pushback ripetizioni ed eliminazioni sono rare: campo minimo
+                   # e una pedina a testa, così escono anche quelle
+                   Ruleset(R=2, N=1, push_off=True, max_plies=60)]
         reasons = set()
         for rules in configs:
             geo = fast_geometry(rules.R, rules.goal_wide)
@@ -128,6 +129,8 @@ class TestFastBoard(unittest.TestCase):
 class TestBots(unittest.TestCase):
     def test_all_bots_play_legal_moves(self):
         for name in BOTS:
+            if name == "mctsp":
+                continue  # stessa ricerca di mctsd, in processi: vedi test_parallel_mcts
             spec = f"{name}:30" if name.startswith("mcts") else name
             for rules in CONFIGS[:2] + CONFIGS[3:4] + CONFIGS[-2:]:
                 rng = random.Random(1)

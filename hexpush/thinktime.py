@@ -11,10 +11,12 @@ valore, cioè di probabilità di vittoria). Scrive <out>_posizioni.csv e un rias
 fase (semimossa e distanza dal traguardo).
 
 match: la politica di gestione del tempo `--policy` (mcts.POLICIES) con budget B contro
-mctsd fisso a B, a colori alternati; riporta le vittorie e le simulazioni medie per mossa,
-che devono restare vicine a B. Scrive <out>_partite.csv e <out>_mosse.csv.
+mctsd fisso a `--fixed` simulazioni (default B), a colori alternati; riporta le vittorie e
+le simulazioni medie per mossa. Il confronto onesto è a calcolo uguale: se la politica
+spende in media più o meno di B, si sceglie B in modo che la media sia uguale a --fixed.
+Scrive <out>_partite.csv e <out>_mosse.csv.
 
-Le regole di default sono quelle del sito (ko, no_pushback, due mosse per turno).
+Senza opzioni sulle regole si usano quelle del sito (ko, no_pushback, due mosse per turno).
 """
 import argparse
 import csv
@@ -135,10 +137,10 @@ def positions_summary(rows, base, factor):
 # --- incontri ----------------------------------------------------------------------------
 
 def _match_game(task):
-    rules, policy, base, adaptive_color, seed = task
+    rules, policy, base, fixed, adaptive_color, seed = task
     bots = {adaptive_color: MCTSDecisiveBot(random.Random(f"m-{seed}-a"), base,
                                             policy=POLICIES[policy]),
-            other(adaptive_color): MCTSDecisiveBot(random.Random(f"m-{seed}-f"), base)}
+            other(adaptive_color): MCTSDecisiveBot(random.Random(f"m-{seed}-f"), fixed)}
     state = new_game(rules)
     moves = []
     t = time.perf_counter()
@@ -154,23 +156,24 @@ def _match_game(task):
         outcome = "patta"
     else:
         outcome = "vittoria" if state.result == adaptive_color else "sconfitta"
-    game = {"politica": policy, "budget": base, "colore": adaptive_color, "esito": outcome,
+    game = {"politica": policy, "budget": base, "fisso": fixed, "colore": adaptive_color,
+            "esito": outcome,
             "motivo": state.reason, "semimosse": state.ply, "seed": seed,
             "secondi": round(time.perf_counter() - t, 1)}
     return game, moves
 
 
-def match_summary(games, moves, policy, base):
+def match_summary(games, moves, policy, base, fixed):
     n = len(games)
     wins = sum(g["esito"] == "vittoria" for g in games)
     draws = sum(g["esito"] == "patta" for g in games)
     score = (wins + 0.5 * draws) / n
     se = math.sqrt(score * (1 - score) / n)
     sims = [m["simulazioni"] for m in moves]
-    lines = [f"{policy}({base}) contro mctsd({base}): {n} partite, punteggio "
+    lines = [f"{policy}({base}) contro mctsd({fixed}): {n} partite, punteggio "
              f"{100 * score:.1f}% (±{100 * se:.1f}), patte {draws}",
              f"simulazioni per mossa: media {statistics.mean(sims):.0f} "
-             f"({statistics.mean(sims) / base:.2f} B), mediana {statistics.median(sims):.0f}, "
+             f"({statistics.mean(sims) / fixed:.2f} volte il fisso), mediana {statistics.median(sims):.0f}, "
              f"min {min(sims)}, max {max(sims)}",
              "per distanza dal traguardo: mosse, simulazioni medie"]
     for d in sorted({m["dist"] for m in moves}):
@@ -198,9 +201,8 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("what", choices=("positions", "match"))
     add_rules_args(ap)
-    ap.add_argument("--candidate-rules", action="store_true",
-                    help="ignora le opzioni sulle regole e usa quelle del sito (default)")
     ap.add_argument("--sims", type=int, default=1000, help="budget B (simulazioni)")
+    ap.add_argument("--fixed", type=int, help="match: simulazioni dell'avversario (default B)")
     ap.add_argument("--factor", type=int, default=8, help="positions: ricerca lunga = factor*B")
     ap.add_argument("--every", type=int, default=1,
                     help="positions: una posizione ogni tanti (a caso)")
@@ -212,8 +214,9 @@ def main():
     ap.add_argument("--out", default="results/thinktime")
     args = ap.parse_args()
     rules = rules_from_args(args)
-    if rules == Ruleset() or args.candidate_rules:
+    if rules == Ruleset():
         rules = Ruleset(**SITE)
+    fixed = args.fixed or args.sims
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     t = time.perf_counter()
     with ProcessPoolExecutor(args.jobs) as ex:
@@ -224,14 +227,14 @@ def main():
             write_csv(f"{args.out}_posizioni.csv", rows)
             text = positions_summary(rows, args.sims, args.factor)
         else:
-            tasks = [(rules, args.policy, args.sims, "AB"[i % 2], args.seed + i)
+            tasks = [(rules, args.policy, args.sims, fixed, "AB"[i % 2], args.seed + i)
                      for i in range(args.games)]
             results = list(ex.map(_match_game, tasks))
             games = [g for g, _ in results]
             moves = [m for _, ms in results for m in ms]
             write_csv(f"{args.out}_partite.csv", games)
             write_csv(f"{args.out}_mosse.csv", moves)
-            text = match_summary(games, moves, args.policy, args.sims)
+            text = match_summary(games, moves, args.policy, args.sims, fixed)
     text = f"{rules}\n{text}\n({time.perf_counter() - t:.0f} s)"
     with open(f"{args.out}_riassunto.txt", "w") as f:
         f.write(text + "\n")

@@ -458,31 +458,89 @@ export function policyStop(policy, done, budget, stats) {
   return policy.early > 0 && v1 - v2 > policy.early * (target - done);
 }
 
+/** File che mancano al traguardo alla pedina più vicina, di chiunque sia. */
+export function goalDistance(fb) {
+  const cells = fb.geo.cells, R = fb.rules.R;
+  let d = Infinity;
+  for (const i of fb.pieces[A]) d = Math.min(d, R - cells[i][1]);
+  for (const i of fb.pieces[B]) d = Math.min(d, cells[i][1] + R);
+  return d;
+}
+
+/** Fattore per il budget nella posizione fb, come mcts.TimePolicy.scale. */
+export function policyScale(policy, fb) {
+  if (!policy.phase || !policy.phase.length) return 1;
+  return policy.phase[Math.min(goalDistance(fb), policy.phase.length) - 1];
+}
+
 const toMove = (geo, m) => (m === null ? null : [...geo.cells[m[0]], m[1]]);
+
+/** Nodo della ricerca precedente (keep.tree) da cui ripartire nella posizione di `s`, o
+ * null. Si scende dalla vecchia radice seguendo la storia della partita, al più
+ * REUSE_DEPTH semimosse (le due del turno avversario e una propria). Il vecchio albero si
+ * stacca comunque, così la memoria si libera. fresh: radice appena aperta su `s`, per
+ * controllare che il nodo trovato abbia le stesse mosse. */
+const REUSE_DEPTH = 4;
+function reusedRoot(keep, s, geo, fresh) {
+  const t = keep.tree;
+  keep.tree = null;
+  const hist = s.history, d = s.ply - t?.ply;
+  if (!t || t.rules !== JSON.stringify(s.rules) || !(d >= 1 && d <= REUSE_DEPTH) ||
+      d >= hist.length || geo.hashKey(hist[hist.length - 1 - d]) !== t.key) return null;
+  let node = t.root;
+  const fb = t.fb.copy();
+  for (let j = d - 1; j >= 0 && node; j--) {
+    const target = geo.hashKey(hist[hist.length - 1 - j]);
+    const prev = node;
+    node = null;
+    for (const ch of prev.children) {
+      const f = fb.copy();
+      replay(f, ch.move);
+      if (f.key() === target) {
+        node = ch;
+        replay(fb, ch.move);
+        break;
+      }
+    }
+  }
+  if (!node || node.terminal !== null || node.winMove !== null ||
+      node.children.length + node.untried.length !== fresh.untried.length) return null;
+  node.parent = null;
+  return node;
+}
 
 /** Ricerca MCTS dalla posizione `s` (non finita). Come MCTSBot.search, ma restituisce
  * {move} se la mossa è obbligata o fa vincere subito, altrimenti
- * {children: [[mossa, visite, somma dei valori per chi muove], ...], sims}, con le mosse
- * come [q, r, d] (null per il passo).
+ * {children: [[mossa, visite, somma dei valori per chi muove], ...], sims, reused}, con
+ * le mosse come [q, r, d] (null per il passo).
  * timeLimit: secondi oltre i quali la ricerca si ferma anche prima di nSim.
  * policy: gestione del tempo (policyStop) o null; con timeLimit il budget è il numero di
- * simulazioni che si stima stiano in timeLimit. */
+ * simulazioni che si stima stiano in timeLimit.
+ * keep: oggetto che il chiamante conserva tra una ricerca e l'altra della stessa partita
+ * (dello stesso giocatore). Se `s` discende dalla posizione della ricerca precedente, si
+ * riparte dal suo sottoalbero: `reused` sono le visite ereditate, e nSim (o il tempo)
+ * conta solo le simulazioni nuove. Senza keep ogni ricerca parte da zero (reused 0). */
 export function search(s, { nSim = 500, timeLimit = null, seed = 0, c = 0.5, decisive = true,
-  playoutLimit = null, policy = null } = {}) {
+  playoutLimit = null, policy = null, keep = null } = {}) {
   const rng = makeRng(seed);
   const rootFb = new FastBoard(s);
   const geo = rootFb.geo;
   const history = historyCounts(geo, s.history);
-  const root = new TreeNode(null, null, 0);
+  let root = new TreeNode(null, null, 0);
   root.open(rootFb, rng);
+  const old = keep ? reusedRoot(keep, s, geo, root) : null;
   if (root.winMove !== null) return { move: toMove(geo, root.winMove) };
   if (root.untried.length === 1) return { move: toMove(geo, root.untried[0]) };
+  if (old) root = old;
+  // visite ereditate dai figli (la radice ne ha una in più: il suo primo playout)
+  const reused = root.children.reduce((n, ch) => n + ch.visits, 0);
   // solo l'estensione può superare il budget
+  const scale = policy ? policyScale(policy, rootFb) : 1;
+  let budget = scale * nSim;
   const stretch = policy && policy.extend ? policy.max_factor : 1;
-  const nMax = Math.floor(stretch * nSim);
+  const nMax = Math.floor(stretch * budget);
   const start = performance.now();
-  const deadline = timeLimit === null ? null : start + stretch * timeLimit * 1000;
-  let budget = nSim;
+  const deadline = timeLimit === null ? null : start + stretch * scale * timeLimit * 1000;
   let i = 0;
   for (; i < nMax; i++) {
     if ((i & 63) === 63) {
@@ -490,7 +548,7 @@ export function search(s, { nSim = 500, timeLimit = null, seed = 0, c = 0.5, dec
       if (policy) {
         if (timeLimit !== null) {
           const rate = (i * 1000) / Math.max(performance.now() - start, 1e-6);
-          budget = Math.min(nSim, rate * timeLimit);
+          budget = scale * Math.min(nSim, rate * timeLimit);
         }
         if (policyStop(policy, i, budget, root.children.map((ch) => [ch.visits, ch.value]))) break;
       }
@@ -533,8 +591,11 @@ export function search(s, { nSim = 500, timeLimit = null, seed = 0, c = 0.5, dec
       node.value += node.mover === A ? valueA : 1 - valueA;
     }
   }
+  if (keep) keep.tree = { rules: JSON.stringify(s.rules), ply: s.ply, key: rootFb.key(),
+    fb: rootFb, root };
   return {
     children: root.children.map((ch) => [toMove(geo, ch.move), ch.visits, ch.value]),
     sims: i,
+    reused,
   };
 }

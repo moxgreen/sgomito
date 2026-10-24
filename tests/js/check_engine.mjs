@@ -3,8 +3,8 @@
 //
 //   node tests/js/check_engine.mjs < casi.json
 
-import { FastBoard, fastGeometry, historyCounts, policyStop, replay, search, terminalValue }
-  from "../../web/play/static/play/mcts.js";
+import { FastBoard, fastGeometry, historyCounts, policyScale, policyStop, replay, search,
+  terminalValue } from "../../web/play/static/play/mcts.js";
 import { combine } from "../../web/play/static/play/computer.js";
 
 const NAME = [null, "A", "B"];
@@ -107,11 +107,39 @@ function checkSearch(c, where) {
   }
 }
 
-// La decisione "fermati / continua" è la stessa di mcts.TimePolicy.stop.
+// Riuso dell'albero lungo una partita, con lo stesso keep: i figli della radice sono mosse
+// legali della posizione nuova, le visite sono ereditate + nuove, il riuso scatta almeno
+// c.min_reused volte e mai sulle posizioni marcate `fresh` (non discendono dalla precedente).
+function checkReuse(c, where) {
+  const keep = {};
+  let reusedCount = 0;
+  for (const [k, st] of c.steps.entries()) {
+    const at = `${where} #${k}`;
+    const res = search(st.state, { nSim: c.n_sim, seed: k, keep });
+    const legal = st.legal.map((m) => JSON.stringify(m));
+    check(legal.includes(JSON.stringify(combine([res]))), at, "mossa scelta", combine([res]), null);
+    if (!res.children) continue;
+    const visits = res.children.reduce((s, ch) => s + ch[1], 0);
+    check(visits === res.reused + res.sims && res.sims === c.n_sim, at, "visite",
+      [visits, res.reused, res.sims], c.n_sim);
+    const bad = res.children.filter((ch) => !legal.includes(JSON.stringify(ch[0])));
+    check(!bad.length && res.children.length <= legal.length, at, "figli legali", bad, null);
+    if (st.fresh) check(res.reused === 0, at, "riuso su posizione scollegata", res.reused, 0);
+    if (res.reused > 0) reusedCount++;
+  }
+  check(reusedCount >= c.min_reused, where, "ricerche con riuso", reusedCount, c.min_reused);
+}
+
+// La decisione "fermati / continua" è la stessa di mcts.TimePolicy.stop, e il fattore
+// di fase lo stesso di TimePolicy.scale.
 function checkPolicy(c, where) {
   for (const [n, t] of c.tests.entries()) {
     const got = policyStop(t.policy, t.done, t.budget, t.stats);
     check(got === t.stop, `${where} #${n}`, "fermati", got, t.stop);
+  }
+  for (const [n, t] of (c.scales || []).entries()) {
+    const got = policyScale(t.policy, new FastBoard(t.state));
+    check(got === t.scale, `${where} fase #${n}`, "fattore", got, t.scale);
   }
 }
 
@@ -123,6 +151,7 @@ for (const [n, c] of JSON.parse(input).entries()) {
   else if (c.kind === "game") checkGame(c, where);
   else if (c.kind === "search") checkSearch(c, where);
   else if (c.kind === "policy") checkPolicy(c, where);
+  else if (c.kind === "reuse") checkReuse(c, where);
   else errors.push({ where, what: "caso sconosciuto" });
 }
 process.stdout.write(JSON.stringify({ errors, checked }));

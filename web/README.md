@@ -70,6 +70,8 @@ bench-js` dall'apertura), contro ~5000 di pypy3 e ~1000 di CPython: anche
 l'Esperto risponde in meno di un secondo. Il livello Campione invece lavora a tempo:
 alberi indipendenti su metà dei core logici (al massimo 8), con le visite sommate come
 in `hexpush/parallel.py`. La sua forza dipende quindi dal dispositivo di chi gioca.
+Ogni worker riparte dal sottoalbero della sua ricerca precedente quando la posizione ne
+discende (di solito ~20-25% di simulazioni in più, gratis): vale per tutti i livelli.
 
 ## Test
 
