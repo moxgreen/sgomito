@@ -1,0 +1,135 @@
+/* Long-form article on a hex board game: one reading column, figures break out slightly,
+   the two player colours (A indigo, B amber) are the only accents. */
+:root {
+  --paper: #f6f7f4;
+  --ink: #1d2128;
+  --muted: #5d6470;
+  --rule: #d9dcd5;
+  --cell: #e7e9e3;
+  --cell-line: #c9cdc4;
+  --a: #3346a3;
+  --b: #c27a12;
+  --a-soft: #dfe3f6;
+  --b-soft: #f6e6cc;
+  --note: #ecefe8;
+  --f-display: "Familjen Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "Newsreader", Georgia, "Times New Roman", serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #15181d; --ink: #e6e7e3; --muted: #9aa1ab; --rule: #2d323a;
+    --cell: #232831; --cell-line: #353b46; --a: #8f9cf0; --b: #e5a54a;
+    --a-soft: #262d52; --b-soft: #45331a; --note: #1d2128; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #15181d; --ink: #e6e7e3; --muted: #9aa1ab; --rule: #2d323a;
+  --cell: #232831; --cell-line: #353b46; --a: #8f9cf0; --b: #e5a54a;
+  --a-soft: #262d52; --b-soft: #45331a; --note: #1d2128; color-scheme: dark;
+}
+body {
+  background: var(--paper); color: var(--ink); font-family: var(--f-body);
+  font-size: 1.15rem; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 3rem 5rem;
+}
+article { max-width: 40rem; margin: 0 auto; display: flex; flex-direction: column; gap: 1.1rem; }
+article > * { margin: 0; min-width: 0; }
+header { display: flex; flex-direction: column; gap: 0.8rem; padding-bottom: 1.6rem;
+  border-bottom: 1px solid var(--rule); margin-bottom: 0.6rem; }
+.kicker { font-family: var(--f-display); text-transform: uppercase; letter-spacing: 0.12em;
+  font-size: 0.78rem; color: var(--muted); display: flex; gap: 0.6rem; align-items: center; }
+.kicker .dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; display: inline-block; }
+.kicker .dot.a { background: var(--a); } .kicker .dot.b { background: var(--b); }
+h1 { font-family: var(--f-display); font-weight: 700; font-size: clamp(2rem, 6vw, 3rem);
+  line-height: 1.05; letter-spacing: -0.02em; text-wrap: balance; margin: 0; }
+.dek { font-size: 1.3rem; line-height: 1.45; color: var(--muted); margin: 0; text-wrap: pretty; }
+h2 { font-family: var(--f-display); font-weight: 700; font-size: 1.55rem; line-height: 1.2;
+  letter-spacing: -0.01em; text-wrap: balance; margin-top: 1.6rem; }
+h3 { font-family: var(--f-display); font-weight: 600; font-size: 1.15rem; margin-top: 0.6rem; }
+p, li { text-wrap: pretty; }
+ul, ol { padding-left: 1.3rem; display: flex; flex-direction: column; gap: 0.35rem; }
+a { color: var(--a); }
+strong { font-weight: 600; }
+code, .mono { font-family: var(--f-mono); font-size: 0.86em; }
+.math { font-family: var(--f-body); font-style: italic; white-space: nowrap; }
+.eq { font-family: var(--f-body); font-size: 1.2rem; text-align: center; padding: 0.6rem 0;
+  overflow-x: auto; }
+.eq i { font-style: italic; }
+.note { background: var(--note); border-radius: 6px; padding: 1rem 1.2rem; font-size: 1.02rem; }
+.note > * + * { margin-top: 0.6rem; }
+.note-title { font-family: var(--f-display); font-weight: 600; font-size: 0.82rem;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+figure { margin: 0.6rem 0; display: flex; flex-direction: column; gap: 0.6rem; }
+figure.wide { margin-left: -1rem; margin-right: -1rem; }
+figcaption { font-size: 0.93rem; line-height: 1.45; color: var(--muted); }
+.figrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 1rem;
+  align-items: start; }
+.figrow > div { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
+.figrow .sub { font-family: var(--f-display); font-size: 0.85rem; color: var(--muted);
+  text-align: center; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.95rem;
+  font-variant-numeric: tabular-nums; }
+th, td { padding: 0.4rem 0.6rem; text-align: right; border-bottom: 1px solid var(--rule);
+  white-space: nowrap; }
+th { font-family: var(--f-display); font-weight: 600; font-size: 0.8rem; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--muted); }
+th:first-child, td:first-child { text-align: left; }
+td.l { text-align: left; white-space: normal; }
+tr.sep td { font-family: var(--f-display); font-size: 0.8rem; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--muted); padding-top: 1rem; }
+.pill { display: inline-block; font-family: var(--f-display); font-size: 0.78rem;
+  padding: 0.05rem 0.5rem; border-radius: 999px; background: var(--note); color: var(--ink); }
+footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+  font-size: 0.95rem; color: var(--muted); }
+
+/* SVG figures */
+svg { display: block; width: 100%; height: auto; overflow: visible; }
+svg.board { max-width: 22rem; margin: 0 auto; }
+.figrow svg.board { max-width: 15rem; }
+.cell { fill: var(--cell); stroke: var(--cell-line); stroke-width: 1; }
+.cell.home-a { fill: var(--a-soft); }
+.cell.home-b { fill: var(--b-soft); }
+.piece { stroke: var(--paper); stroke-width: 1.5; }
+.piece.pa { fill: var(--a); }
+.piece.pb { fill: var(--b); }
+.mark { fill: none; stroke: var(--ink); stroke-width: 2; stroke-dasharray: 3 3; }
+.arrow { stroke-width: 2.5; fill: none; }
+.arr-a { stroke: var(--a); } .arr-b { stroke: var(--b); } .arr-n { stroke: var(--ink); }
+.head-a { fill: var(--a); } .head-b { fill: var(--b); } .head-n { fill: var(--ink); }
+.chart .grid { stroke: var(--rule); stroke-width: 1; }
+.chart .ref { stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 4 3; }
+.chart .tick, .chart .axis { fill: var(--muted); font-family: var(--f-display); font-size: 12px; }
+.chart .lab { fill: var(--ink); font-family: var(--f-display); font-size: 13px; }
+.chart .val { fill: var(--muted); font-family: var(--f-mono); font-size: 12px; }
+.chart .bar { fill: var(--a); }
+.chart .bar.b { fill: var(--b); }
+.chart .bar.n { fill: var(--muted); }
+.chart .err { stroke: var(--ink); stroke-width: 1.5; }
+.chart .line { fill: none; stroke-width: 2.2; }
+.chart .line.a { stroke: var(--a); } .chart .dot.a { fill: var(--a); }
+.chart .line.b { stroke: var(--b); } .chart .dot.b { fill: var(--b); }
+.chart .line.n { stroke: var(--muted); } .chart .dot.n { fill: var(--muted); }
+.chart .serieslab { font-family: var(--f-display); font-size: 12px; }
+.chart .serieslab.a { fill: var(--a); } .chart .serieslab.b { fill: var(--b); }
+.chart .serieslab.n { fill: var(--muted); }
+.diagram text { font-family: var(--f-display); font-size: 12px; fill: var(--ink); }
+.diagram .node { fill: var(--cell); stroke: var(--cell-line); stroke-width: 1.2; }
+.diagram .node.hot { fill: var(--a-soft); stroke: var(--a); }
+.diagram .node.new { fill: var(--b-soft); stroke: var(--b); }
+.diagram .edge { stroke: var(--cell-line); stroke-width: 1.5; fill: none; }
+.diagram .edge.hot { stroke: var(--a); stroke-width: 2.2; }
+.diagram .walk { stroke: var(--b); stroke-width: 1.8; fill: none; stroke-dasharray: 4 3; }
+.diagram .up { stroke: var(--ink); stroke-width: 1.4; fill: none; }
+.diagram .cap { fill: var(--muted); font-size: 11px; }
+
+@media (max-width: 30rem) {
+  body { font-size: 1.05rem; padding-block: 2rem 3rem; }
+  figure.wide { margin-left: 0; margin-right: 0; }
+}
+.tablenote { font-size: 0.9rem; color: var(--muted); line-height: 1.45; }
+.scrollfig { overflow-x: auto; }
+.scrollfig svg { min-width: 34rem; }

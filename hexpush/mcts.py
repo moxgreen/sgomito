@@ -434,6 +434,7 @@ POLICIES = {
     "unst": TimePolicy(early=1.0, extend=0.5),
     "stop50unst": TimePolicy(early=0.5, extend=0.5),
     "phase": TimePolicy(early=1.0, phase=(0.7, 0.9, 1.3, 1.5, 1.3, 0.8)),
+    "stop50unstphase": TimePolicy(early=0.5, extend=0.5, phase=(0.7, 0.9, 1.3, 1.5, 1.3, 0.8)),
 }
 
 

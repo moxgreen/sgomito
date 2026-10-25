@@ -1,76 +1,77 @@
 {% load static %}
 <div class="howto">
-  <p><b>Scopo.</b> Porta una tua pedina sulla <b>fila di casa dell'avversario</b>: il bordo
-    colorato in alto, con le celle tratteggiate del tuo colore.</p>
-  <p><b>Turno.</b> Muovi <b>due pedine diverse</b>, ciascuna di una casella in una delle sei
-    direzioni. Arancio apre la partita con una mossa sola.</p>
-  <p><b>Spinta.</b> Se la casella è occupata, da una pedina avversaria o tua, la spingi di
-    una casella nella stessa direzione e prendi il suo posto. Si può solo se dietro c'è una
-    casella libera: mai due pedine insieme, mai contro il muro, niente catture.</p>
-  <p><b>Niente rispinta.</b> Una pedina appena spinta, nel turno subito dopo, non può
-    rispingere indietro chi l'ha spinta.</p>
-  <p><b>Ko.</b> Non puoi rifare la posizione d'inizio del turno precedente: il turno
-    dell'avversario non si disfa subito.</p>
-  <p><b>Patta.</b> Stessa posizione ripetuta tre volte, oppure 200 semimosse.</p>
+  <p><b>Goal.</b> Get one of your pieces onto your <b>opponent's home row</b>: the colored
+    edge at the top, with the dashed cells in your color.</p>
+  <p><b>Turn.</b> Move <b>two different pieces</b>, each by one cell in one of the six
+    directions. Orange opens the game with a single move.</p>
+  <p><b>Push.</b> If the cell is occupied, by an opponent's piece or one of yours, you push
+    that piece one cell further in the same direction and take its place. Only if the cell
+    behind it is free: never two pieces at once, never against the wall, no captures.</p>
+  <p><b>No push-back.</b> A piece that has just been pushed can't, in the very next turn,
+    push back the piece that pushed it.</p>
+  <p><b>Ko.</b> You can't recreate the position from the start of the previous turn: your
+    opponent's turn can't be undone right away.</p>
+  <p><b>Draw.</b> The same position three times, or 200 plies.</p>
 
-  <h3>Sul campo</h3>
+  <h3>On the board</h3>
   <ul>
-    <li>Clic su una tua pedina, poi su una casella evidenziata. Oppure trascinala.</li>
-    <li>Verde: spostamento. Rosso: spinta (la freccia mostra dove finisce la pedina spinta).</li>
-    <li>Barrato: mossa vietata dalla regola della rispinta o dal ko.</li>
-    <li>Pedina grigia: ha già mosso in questo turno. La prima mossa si annulla finché non
-      fai la seconda.</li>
-    <li>Le frecce tratteggiate mostrano l'ultimo turno dell'avversario.</li>
+    <li>Click one of your pieces, then a highlighted cell. Or drag it.</li>
+    <li>Green: plain move. Red: push (the arrow shows where the pushed piece ends up).</li>
+    <li>Crossed out: move forbidden by the push-back rule or by the ko.</li>
+    <li>Gray piece: it has already moved this turn. You can undo the first move until you
+      make the second.</li>
+    <li>Dashed arrows show your opponent's last turn.</li>
   </ul>
 
-  <h3>Esempi</h3>
-  <p class="note">Visti da Arancio, su un campo più piccolo di quello vero.</p>
+  <h3>Examples</h3>
+  <p class="note">Seen by Orange, on a board smaller than the real one.</p>
   <div class="howto-examples">
     <figure>
       <picture><source srcset="{% static 'play/regole/turno-scuro.gif' %}" media="(prefers-color-scheme: dark)">
         <img src="{% static 'play/regole/turno.gif' %}" width="299" height="307" loading="lazy"
-          alt="Arancio sposta una pedina, che diventa grigia, poi ne sposta un'altra; poi muove Blu."></picture>
-      <figcaption><b>Il turno.</b> Due mosse con due pedine diverse: quella che ha già mosso
-        diventa grigia fino alla fine del turno.</figcaption>
+          alt="Orange moves a piece, which turns gray, then moves another one; then Blue moves."></picture>
+      <figcaption><b>The turn.</b> Two moves with two different pieces: the one that has
+        already moved turns gray until the end of the turn.</figcaption>
     </figure>
     <figure>
       <picture><source srcset="{% static 'play/regole/spinta-scuro.gif' %}" media="(prefers-color-scheme: dark)">
         <img src="{% static 'play/regole/spinta.gif' %}" width="299" height="307" loading="lazy"
-          alt="Arancio spinge una pedina blu di una casella e ne prende il posto."></picture>
-      <figcaption><b>La spinta.</b> Dietro la pedina blu c'è una casella libera: la spingi
-        lì ed entri al suo posto.</figcaption>
+          alt="Orange pushes a blue piece by one cell and takes its place."></picture>
+      <figcaption><b>The push.</b> Behind the blue piece there's a free cell: you push it
+        there and step into its place.</figcaption>
     </figure>
     <figure>
       <picture><source srcset="{% static 'play/regole/spinte-vietate-scuro.gif' %}" media="(prefers-color-scheme: dark)">
         <img src="{% static 'play/regole/spinte-vietate.gif' %}" width="299" height="307" loading="lazy"
-          alt="Due spinte impossibili, segnate con una croce: dietro c'è un'altra pedina, oppure il muro."></picture>
-      <figcaption><b>Quando non si spinge.</b> Se dietro c'è un'altra pedina (se ne spinge
-        una sola) o il muro. Qui sono barrate per chiarezza; in partita quelle caselle
-        semplicemente non si illuminano.</figcaption>
+          alt="Two impossible pushes, marked with a cross: behind there's another piece, or the wall."></picture>
+      <figcaption><b>When you can't push.</b> If behind there's another piece (you push only
+        one) or the wall. Here they're crossed out for clarity; in a game those cells just
+        don't light up.</figcaption>
     </figure>
     <figure>
       <picture><source srcset="{% static 'play/regole/spinta-propria-scuro.gif' %}" media="(prefers-color-scheme: dark)">
         <img src="{% static 'play/regole/spinta-propria.gif' %}" width="299" height="307" loading="lazy"
-          alt="Arancio spinge una propria pedina: avanzano tutte e due di una casella."></picture>
-      <figcaption><b>Spingere le tue pedine.</b> Vale anche per le tue: quella davanti
-        avanza di una casella e quella dietro prende il suo posto. Utile per avanzare in
-        fila o per liberarti la strada.</figcaption>
+          alt="Orange pushes one of its own pieces: both move forward by one cell."></picture>
+      <figcaption><b>Pushing your own pieces.</b> It works on yours too: the front one moves
+        forward one cell and the one behind takes its place. Useful to advance in a line or
+        to clear your way.</figcaption>
     </figure>
     <figure>
       <picture><source srcset="{% static 'play/regole/niente-rispinta-scuro.gif' %}" media="(prefers-color-scheme: dark)">
         <img src="{% static 'play/regole/niente-rispinta.gif' %}" width="299" height="307" loading="lazy"
-          alt="Blu spinge una pedina arancio; nel turno di Arancio la spinta all'indietro è barrata, le altre mosse sono libere."></picture>
-      <figcaption><b>Niente rispinta.</b> Blu ha spinto la tua pedina. Nel tuo turno lei non
-        può rispingere indietro la pedina blu che l'ha spinta (barrato): annullerebbe la
-        spinta. Le altre mosse le restano, e dal turno dopo il divieto cade.</figcaption>
+          alt="Blue pushes an orange piece; on Orange's turn the push back is crossed out, the other moves are allowed."></picture>
+      <figcaption><b>No push-back.</b> Blue has pushed your piece. On your turn it can't push
+        back the blue piece that pushed it (crossed out): that would undo the push. Its
+        other moves are still allowed, and from the following turn the ban is lifted.</figcaption>
     </figure>
     <figure>
       <picture><source srcset="{% static 'play/regole/vittoria-scuro.gif' %}" media="(prefers-color-scheme: dark)">
         <img src="{% static 'play/regole/vittoria.gif' %}" width="299" height="307" loading="lazy"
-          alt="Una pedina arancio entra nella fila di casa blu e Arancio vince."></picture>
-      <figcaption><b>La vittoria.</b> Appena una tua pedina tocca la casa avversaria hai
-        vinto. Dalla penultima fila minaccia due caselle: qui Blu ne copre una sola.
-        Attento: se spingi una pedina avversaria sulla tua casa, vince l'avversario.</figcaption>
+          alt="An orange piece enters Blue's home row and Orange wins."></picture>
+      <figcaption><b>Winning.</b> As soon as one of your pieces touches the opponent's home
+        row, you win. From the second-to-last row it threatens two cells: here Blue covers
+        only one. Careful: if you push an opponent's piece onto your own home row, your
+        opponent wins.</figcaption>
     </figure>
   </div>
 </div>

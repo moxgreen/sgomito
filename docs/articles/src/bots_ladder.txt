@@ -1,0 +1,8 @@
+@@LADDER_CAPTION
+Elo gained at each doubling of the simulations, with 95% intervals. The line stays roughly level, between about 100 and 150 Elo per doubling, all the way to 12,800 simulations per move.
+@@LADDER_TEXT
+<p>The gain per doubling does not shrink. Across seven doublings, from 100 to 12,800 simulations, every step is worth between about 100 and 150 Elo, with no trend beyond the noise. The last doubling, 6,400 against 12,800, is one of the largest. In total the dial spans about 820 Elo. In the language of the skill chain, that is four links of 200 Elo each, and the chain shows no sign of running out. Against the weakest bot, the strongest would be expected to win about 99 games in 100.</p>
+
+<p>Two other columns of the run support this reading. Draws practically never happen (2 in 1,400 games), so better play does not collapse into safe stalemates. And the bots grow more decisive as they think longer: the share of the search’s visits that goes to the move it finally plays rises from 15% at 200 simulations to 39% at 12,800. A stronger bot does not only win more; it sees more clearly which moves matter.</p>
+
+<p>Then the controls. With 2,000 simulations the bot beats Greedy 84% of the time and Rusher 90%, and wins every game against Turtle and Ping-pong. The extra strength is real against opponents that play differently, not just against copies of itself.</p>

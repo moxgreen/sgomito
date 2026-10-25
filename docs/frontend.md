@@ -80,9 +80,16 @@ senza conoscere la geometria delle regole.
 
 - Bot `mctsd` con il numero di simulazioni come difficoltà: Facile 200, Medio 1000,
   Difficile 4000, Esperto 12000.
-- Livello Campione: alberi `mctsd` indipendenti, uno per ogni due core logici, con un
-  limite di tempo per mossa (`HEXPUSH_CHAMPION_SECONDS`). Le visite delle mosse alla
-  radice si sommano come in `ParallelMCTSBot` (`hexpush/parallel.py`).
+- Livello Campione: alberi `mctsd` indipendenti, uno per ogni due core logici, che si
+  dividono `HEXPUSH_CHAMPION_SIMS` simulazioni per mossa (default 192000), con un tetto
+  di tempo per i dispositivi lenti (`HEXPUSH_CHAMPION_MAX_SECONDS`, default 15). Le
+  visite delle mosse alla radice si sommano come in `ParallelMCTSBot`
+  (`hexpush/parallel.py`). `n_sim` nella richiesta è il totale: il browser lo divide
+  tra i worker. 192000 è la forza del vecchio Campione a tempo (3 s) su un Mac a 8 core,
+  misurata nel browser: ~185000 simulazioni su 4 alberi. È il primo livello che l'autore
+  non ha trovato troppo facile; Esperto (12000) lo era (ottobre 2026). Con 4 alberi sono
+  ~3 s per mossa; con un worker solo serve un processore da ~13000 simulazioni al
+  secondo per stare sotto il tetto.
 - Il bot calcola **nel browser** del giocatore umano, in Web Worker
   (`web/play/static/play/mcts.js`, porting di `hexpush/mcts.py`). Quando tocca al
   computer, lo stato di quel giocatore ha `"thinking": true` e la richiesta

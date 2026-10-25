@@ -1,5 +1,5 @@
 {% load static %}<!doctype html>
-<html lang="it">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,7 +8,7 @@
 </head>
 <body>
   <header class="top"><a href="{% url 'home' %}" class="brand">⬡ Spinta</a>
-    <nav><a href="{% url 'home' %}" class="primary">Nuova partita</a><a href="{% url 'registry' %}">Registro</a></nav></header>
+    <nav><a href="{% url 'home' %}" class="primary">New game</a><a href="{% url 'registry' %}">Registry</a></nav></header>
   <main>{% block content %}{% endblock %}</main>
 </body>
 </html>

@@ -8,18 +8,18 @@ const HEX = 40;                 // raggio di una cella, in unità SVG
 const SQ3 = Math.sqrt(3);
 // vicini in coordinate assiali: servono solo a disegnare i bordi del campo
 const NEIGH = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, -1], [-1, 1]];
-const NAMES = { A: "Arancio", B: "Blu" };
+const NAMES = { A: "Orange", B: "Blue" };
 const REASONS = {
-  goal: "pedina sul traguardo",
-  elimination: "pedine avversarie eliminate",
-  repetition: "posizione ripetuta tre volte",
-  max_plies: "raggiunto il limite di semimosse",
-  resign: "abbandono",
+  goal: "piece on the goal",
+  elimination: "opponent's pieces eliminated",
+  repetition: "position repeated three times",
+  max_plies: "ply limit reached",
+  resign: "resignation",
 };
-const KO_TEXT = "Vietata dal ko: rifarebbe la posizione d'inizio del turno precedente " +
-  "(non si può disfare subito la mossa dell'avversario).";
-const PUSHBACK_TEXT = "Vietata: questa pedina è appena stata spinta e non può rispingere " +
-  "indietro chi l'ha spinta.";
+const KO_TEXT = "Forbidden by the ko: it would recreate the position from the start of " +
+  "the previous turn (you can't undo your opponent's move right away).";
+const PUSHBACK_TEXT = "Forbidden: this piece has just been pushed and can't push back " +
+  "the piece that pushed it.";
 
 const $ = (id) => document.getElementById(id);
 const root = $("game");
@@ -331,21 +331,22 @@ async function playComputer(req) {
   botPly = req.ply;
   const t0 = performance.now();
   try {
-    const move = await (await computer).choose(req.search,
+    const { move, info } = await (await computer).choose(req.search,
       { nSim: req.n_sim, timeLimit: req.time_limit, workers: req.workers, policy: req.policy });
+    info.ms = Math.round(performance.now() - t0);  // tempo di ricerca, senza la pausa
     const pause = req.delay * 1000 - (performance.now() - t0);
     if (pause > 0) await new Promise((ok) => setTimeout(ok, pause));
     if (!S.bot || S.bot.ply !== req.ply) return;
-    send({ type: "bot_move", ply: req.ply, q: move[0], r: move[1], d: move[2] });
+    send({ type: "bot_move", ply: req.ply, q: move[0], r: move[1], d: move[2], info });
   } catch (e) {
     botPly = null;
-    showHint(`Il computer non riesce a calcolare la mossa: ${e.message}`, true);
+    showHint(`The computer couldn't compute its move: ${e.message}`, true);
   }
 }
 
 function send(obj) {
   if (!ws || ws.readyState !== WebSocket.OPEN) {
-    showHint("Non connesso: riprovo a collegarmi…", true);
+    showHint("Not connected: trying to reconnect…", true);
     return false;
   }
   ws.send(JSON.stringify(obj));
@@ -365,10 +366,10 @@ function updatePanel() {
   const you = S.you;
   $("players").innerHTML = ["A", "B"].map((p) => {
     const pl = S.players[p];
-    const tag = p === you ? " <strong>(tu)</strong>" : "";
+    const tag = p === you ? " <strong>(you)</strong>" : "";
     const on = pl.online ? "online" : "offline";
     const turn = !S.result && S.to_move === p ? " turn" : "";
-    const label = pl.kind === "libero" ? "posto libero" : escapeHtml(pl.name);
+    const label = pl.kind === "free" ? "free seat" : escapeHtml(pl.name);
     return `<div class="player${turn}">${swatch(p)}<span>${NAMES[p]}${tag}</span>` +
       `<span class="who">${label}</span><span class="dot ${on}" title="${on}"></span></div>`;
   }).join("");
@@ -376,16 +377,16 @@ function updatePanel() {
   let status = "";
   const mine = !S.result && you === S.to_move;
   if (S.result) status = resultLine();
-  else if (S.thinking) status = "Il computer sta pensando…";
+  else if (S.thinking) status = "The computer is thinking…";
   else if (mine) {
-    if (S.locked) status = "Tocca a te: seconda mossa, con un'altra pedina.";
-    else if (S.ply === 0 && S.rules.moves_per_turn === 2) status = "Tocca a te: mossa d'apertura (una sola).";
-    else if (S.moves_left === 2) status = "Tocca a te: due mosse.";
-    else status = "Tocca a te.";
+    if (S.locked) status = "Your turn: second move, with another piece.";
+    else if (S.ply === 0 && S.rules.moves_per_turn === 2) status = "Your turn: opening move (just one).";
+    else if (S.moves_left === 2) status = "Your turn: two moves.";
+    else status = "Your turn.";
   } else if (you) {
     const other = you === "A" ? "B" : "A";
-    status = S.players[other].kind === "libero" ? "In attesa dell'avversario…" : "Tocca all'avversario.";
-  } else status = `Tocca a ${NAMES[S.to_move]}. Stai guardando la partita.`;
+    status = S.players[other].kind === "free" ? "Waiting for your opponent…" : "Your opponent's turn.";
+  } else status = `${NAMES[S.to_move]} to move. You are watching this game.`;
   // barra sopra il campo: piena nel proprio colore quando tocca a chi guarda
   const cls = S.result ? "ended" : mine ? `mine turn-${you}${S.locked ? " second" : ""}` : "";
   setBar(status, cls, S.result ? null : S.to_move);
@@ -394,8 +395,8 @@ function updatePanel() {
   if (S.result) {
     const why = reasonText();
     res.innerHTML = `<strong>${resultText()}</strong>${why ? ` — ${why}` : ""}.` +
-      (S.rated ? ` Il tuo giudizio: ${"★".repeat(S.rated)}${"☆".repeat(5 - S.rated)}.` : "") +
-      ` <a href="/">Nuova partita</a>`;
+      (S.rated ? ` Your rating: ${"★".repeat(S.rated)}${"☆".repeat(5 - S.rated)}.` : "") +
+      ` <a href="/">New game</a>`;
     res.hidden = false;
   } else res.hidden = true;
   updateRating();
@@ -404,17 +405,17 @@ function updatePanel() {
   $("undo").hidden = !you || S.rules.moves_per_turn < 2 || !!S.result;
   $("resign").hidden = !you || !!S.result;
   const share = $("share");
-  if (share) share.hidden = !Object.values(S.players).some((p) => p.kind === "libero");
+  if (share) share.hidden = !Object.values(S.players).some((p) => p.kind === "free");
 
   const r = S.rules;
-  const parts = [`R=${r.R}`, `${r.N} pedine`, r.K > 1 ? `K=${r.K}` : null,
-    r.goal_wide ? "traguardo largo" : null, r.push_off ? "spinta fuori" : null,
-    r.no_pushback ? "niente rispinta" : null, r.ko ? "ko" : null,
-    `${r.moves_per_turn} mosse per turno`].filter(Boolean);
+  const parts = [`R=${r.R}`, `${r.N} pieces`, r.K > 1 ? `K=${r.K}` : null,
+    r.goal_wide ? "wide goal" : null, r.push_off ? "push off" : null,
+    r.no_pushback ? "no push-back" : null, r.ko ? "ko" : null,
+    `${r.moves_per_turn} move${r.moves_per_turn > 1 ? "s" : ""} per turn`].filter(Boolean);
   let extra = "";
-  if (r.K > 1) extra += ` Al traguardo: ${NAMES.A} ${S.reached.A}/${r.K}, ${NAMES.B} ${S.reached.B}/${r.K}.`;
-  if (r.push_off) extra += ` Pedine: ${NAMES.A} ${S.pieces.A}, ${NAMES.B} ${S.pieces.B}.`;
-  $("rules-summary").textContent = `Regole: ${parts.join(", ")}. Semimossa ${S.ply}/${r.max_plies}.${extra}`;
+  if (r.K > 1) extra += ` On the goal: ${NAMES.A} ${S.reached.A}/${r.K}, ${NAMES.B} ${S.reached.B}/${r.K}.`;
+  if (r.push_off) extra += ` Pieces: ${NAMES.A} ${S.pieces.A}, ${NAMES.B} ${S.pieces.B}.`;
+  $("rules-summary").textContent = `Rules: ${parts.join(", ")}. Ply ${S.ply}/${r.max_plies}.${extra}`;
 }
 
 function setBar(text, cls = "", player = null) {
@@ -425,17 +426,17 @@ function setBar(text, cls = "", player = null) {
 
 function resultText() {
   const you = S.you;
-  if (S.result === "draw") return "Patta";
-  if (!you) return `Vince ${NAMES[S.result]}`;
-  if (S.resigned === you) return "Hai abbandonato";
-  return S.result === you ? "Hai vinto!" : "Hai perso";
+  if (S.result === "draw") return "Draw";
+  if (!you) return `${NAMES[S.result]} wins`;
+  if (S.resigned === you) return "You resigned";
+  return S.result === you ? "You won!" : "You lost";
 }
 
 // motivo della fine, detto dal punto di vista di chi guarda
 function reasonText() {
   if (S.reason !== "resign") return REASONS[S.reason] || S.reason;
   if (S.you === S.resigned) return null;
-  return S.you ? "l'avversario ha abbandonato" : `${NAMES[S.resigned]} ha abbandonato`;
+  return S.you ? "your opponent resigned" : `${NAMES[S.resigned]} resigned`;
 }
 
 function resultLine() {
@@ -455,7 +456,7 @@ function updateRating() {
   const canRate = !!(S.result && S.you);
   const btn = $("rate-open");
   btn.hidden = !canRate;
-  btn.textContent = S.rated ? "Cambia giudizio" : "Dai un giudizio";
+  btn.textContent = S.rated ? "Change your rating" : "Rate the game";
   if (canRate && !S.rated && !ratingShown) {
     ratingShown = true;
     setTimeout(openRating, 900);  // dopo l'animazione dell'ultima mossa
@@ -477,8 +478,8 @@ function setStars(n) {
     b.classList.toggle("on", on);
     b.setAttribute("aria-checked", String(Number(b.dataset.stars) === n));
   });
-  const words = ["Scegli da 1 a 5 stelle.", "Per niente", "Poco", "Abbastanza", "Molto",
-    "Moltissimo"];
+  const words = ["Choose from 1 to 5 stars.", "Not at all", "A little", "Quite a lot",
+    "A lot", "Loads"];
   $("stars-label").textContent = words[n];
   $("rating-send").disabled = n === 0;
 }
@@ -489,7 +490,7 @@ document.querySelectorAll("#rating .star").forEach((b) => {
 $("rating-form").addEventListener("submit", (ev) => {
   if (!stars) { ev.preventDefault(); return; }
   if (send({ type: "rate", stars, comment: $("rating-comment").value.trim() })) {
-    showHint("Grazie per il giudizio!");
+    showHint("Thanks for rating!");
   }
 });
 $("rating-skip").addEventListener("click", () => $("rating").close());
@@ -609,7 +610,7 @@ function endPress(ev, cancelled) {
   else {
     selected = selected === p.src ? null : p.src;
     hoverDest = null;
-    if (selected && !moves.has(selected)) showHint("Questa pedina ha solo mosse vietate (ko o rispinta).");
+    if (selected && !moves.has(selected)) showHint("This piece only has forbidden moves (ko or push-back).");
     drawMarks();
   }
 }
@@ -628,13 +629,13 @@ $("undo").addEventListener("click", () => {
   if (send({ type: "undo" })) waiting = true;
 });
 $("resign").addEventListener("click", () => {
-  if (confirm("Vuoi davvero abbandonare la partita?")) send({ type: "resign" });
+  if (confirm("Do you really want to resign?")) send({ type: "resign" });
 });
 $("copy")?.addEventListener("click", async () => {
   const input = $("share-url");
   try {
     await navigator.clipboard.writeText(input.value);
-    showHint("Link copiato.");
+    showHint("Link copied.");
   } catch {
     input.select();
   }
@@ -644,7 +645,7 @@ $("copy")?.addEventListener("click", async () => {
 
 function connect() {
   const proto = location.protocol === "https:" ? "wss" : "ws";
-  ws = new WebSocket(`${proto}://${location.host}/ws/partita/${matchId}/`);
+  ws = new WebSocket(`${proto}://${location.host}/ws/game/${matchId}/`);
   ws.onopen = () => {
     retry = 0;
     botPly = null;  // una risposta del computer può essersi persa con la connessione
@@ -656,10 +657,10 @@ function connect() {
   };
   ws.onclose = (ev) => {
     if (ev.code === 4404) {
-      setBar("Partita inesistente: forse il server è stato riavviato.");
+      setBar("No such game: maybe the server was restarted.");
       return;
     }
-    setBar("Connessione persa, mi ricollego…");
+    setBar("Connection lost, reconnecting…");
     setTimeout(connect, Math.min(10000, 1000 * 2 ** retry++));
   };
 }

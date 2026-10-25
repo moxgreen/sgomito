@@ -1,0 +1,205 @@
+<title>Measuring Depth by Doubling</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&display=swap">
+<style>
+{{STYLE}}
+</style>
+{{DEFS}}
+<article>
+<header>
+  <div class="kicker"><span class="dot a"></span><span class="dot b"></span>How to tell if a game is fun, with simulations · Part 1</div>
+  <h1>Measuring the depth of a game by doubling a robot’s brain</h1>
+  <p class="dek">A computer cannot tell you whether a game is fun. It can tell you whether the game rewards thinking, and it can put a number on how much.</p>
+</header>
+
+<p>Spinta (Italian for “push”) is a two-player board game invented on paper a few weeks ago. Before asking friends to spend their evenings on it, we wanted to know whether it deserved them. Fun is a human verdict and no program can deliver it. But some of its preconditions are measurable, and a simulation can check them cheaply:</p>
+
+<ul>
+  <li>The game must not be <strong>broken</strong>: it should end, the first player should not win too often, and no cheap trick should beat everything.</li>
+  <li>The game should be <strong>deep</strong>: a player who thinks harder should keep beating one who thinks less, at every level of skill. A game that is “solved” after an afternoon stops being interesting.</li>
+  <li>The game should be <strong>varied</strong>: games should not all look the same. That is the subject of <a href="https://claude.ai/artifact/XyECex874wGPwE3hBk5ssx">Part 2</a>.</li>
+</ul>
+
+<p>This article is about the first two, and mostly about depth. The idea is simple. Build a robot whose strength you can turn up with a dial, let it play against itself at many settings, and see whether turning the dial keeps paying off. To get there we need a ladder of bots, from a coin-flipper to a Monte Carlo tree search that finds strategy on its own, and a little statistics to decide when to trust them.</p>
+
+<h2>The game in one minute</h2>
+
+<p>The board is a regular hexagon with five cells on each side: 61 cells, the same as Abalone. Each player starts with five pieces on their own edge, the <em>home row</em>. Indigo (player A) starts at the top and heads down; amber (player B) starts at the bottom and heads up. The four slanted edges are walls.</p>
+
+<figure>
+{{BOARD_START}}
+<figcaption>The starting position. The tinted rows are the two home rows; reaching the opponent’s home row wins.</figcaption>
+</figure>
+
+<ul>
+  <li><strong>A turn is two moves</strong>, made with two different pieces. To compensate for moving first, A’s very first turn is a single move.</li>
+  <li><strong>A move</strong> takes one piece to one of its six neighbouring cells. If that cell is occupied, by either colour, the piece there is <strong>pushed</strong> one cell further in the same direction, which must be empty and on the board. You never push two pieces, never push anything through a wall, and nothing is ever captured.</li>
+  <li><strong>You win</strong> as soon as one of your pieces stands on the opponent’s home row.</li>
+  <li><strong>Two anti-shuffling rules.</strong> You may not end your turn by restoring the position exactly as it was before your opponent’s last turn (a <em>ko</em> rule, borrowed from Go). And a piece that has just been pushed may not, on the very next turn, push its pusher straight back (<em>no pushback</em>).</li>
+  <li>A position repeated three times, or 200 single moves without a winner, is a draw.</li>
+</ul>
+
+<figure>
+<div class="figrow">
+<div>{{BOARD_PUSH1}}<div class="sub">Before: indigo steps right</div></div>
+<div>{{BOARD_PUSH2}}<div class="sub">After: the amber piece is shoved along</div></div>
+</div>
+<figcaption>A push. The moving piece takes the cell of the piece it pushes, which slides one cell on. The push is legal only because the cell behind the amber piece is free.</figcaption>
+</figure>
+
+<p>The two anti-shuffling rules, and the two moves per turn, are there because a bot found a hole in an earlier version of the rules. More on that below.</p>
+
+<h2>Is it broken? A ladder of bots</h2>
+
+<p>No single bot can answer every question. A bot that plays well is slow; a bot that is fast plays badly; a bot that plays one particular style tells you about that style and nothing else. So we built a ladder, and we did not climb to the next rung until the current one had answered its question.</p>
+
+<h3>Rung one: Random and Greedy</h3>
+
+<p><strong>Random</strong> picks a legal move uniformly at random. It is useless as an opponent but invaluable as a test: if the rules engine has a bug, random play finds it quickly, because it visits strange positions no sensible player would reach. It also gives a baseline for every statistic. Two random players draw 45% of their games by hitting the 200-move limit; they push in 11% of their moves.</p>
+
+<p><strong>Greedy</strong> looks one move ahead and scores the result with a simple formula. Call the <em>advancement</em> of a piece the number of rows it has travelled from its own home row, from 0 to 8. Then</p>
+
+<p class="eq"><i>score</i> = Σ advancement of my pieces − Σ advancement of the opponent’s pieces</p>
+
+<p>and Greedy plays the move that raises this number most, breaking ties at random. A winning move scores +∞. Stepping a piece one row forward is worth +1; pushing an opponent’s piece one row back toward its home is also worth +1, and doing both at once is worth +2.</p>
+
+<p>Greedy plays like a confident beginner. It tells us how long games last when both sides push forward, and how often the push is used. It cannot tell us whether the game is deep, because the formula is our own prejudice about what matters. If the formula is wrong, Greedy is wrong in exactly the same way every time.</p>
+
+<h3>Rung two: the saboteurs</h3>
+
+<p>The second rung holds bots that are deliberately bad at everything except one degenerate plan. Each one asks: would this cheap trick break the game?</p>
+
+<ul>
+  <li><strong>Turtle</strong> never lets a piece leave its first two rows. It plugs holes and pushes away anything that comes near. If Turtle rarely loses, defence is too strong and the game will be a stalemate.</li>
+  <li><strong>Rusher</strong> picks one piece and runs it forward as fast as possible, leaving the others at home. If Rusher wins, the game is a race and pushing does not matter.</li>
+  <li><strong>Ping-pong</strong> plays like Greedy, except that whenever one of its pieces is pushed, it pushes straight back. It measures how much the game needs rules against endless back-and-forth.</li>
+</ul>
+
+<p>Our rule of thumb: a sound game should let Greedy beat each saboteur at least 70% of the time. The saboteurs earned their keep:</p>
+
+<ul>
+  <li>In the first version of the rules, with no ko, two Greedy bots drew 67% of their games by threefold repetition. Pieces pushed each other back and forth until the position repeated. The <strong>ko</strong> rule fixed that.</li>
+  <li>With one move per turn, Rusher beat our strong search bot most of the time. The home row is an invulnerable wall (nothing can be pushed out through the edge behind it), so the defender’s pieces are safest when they do not move, and each defensive push draws a defender out of the wall. A runner in the second-to-last row threatens two goal cells at once. Allowing <strong>two moves per turn</strong> turned this around: now a defender can block and counter in the same turn, and the search bot beats Rusher about nine times in ten.</li>
+  <li>With two moves per turn the ko rule stopped catching ping-pong, because the other move of the turn changes the position, so it is never exactly restored. Between two Greedy bots, a third of all pushes simply undid the opponent’s last push. The <strong>no-pushback</strong> rule closes that gap.</li>
+</ul>
+
+<h2>A robot with a strength dial</h2>
+
+<p>The saboteurs check that the rules are not broken. To ask whether the game rewards thought, we need a bot that does not carry our prejudices: one that is given the rules and nothing else, and that plays better the longer it thinks. Monte Carlo tree search (MCTS) is exactly that, and its thinking time is a single number, the count of simulations per move, which makes it the dial we need. It is the family of algorithms behind the first strong Go programs, before neural networks took over.</p>
+
+<h3>Judging a position by playing it out at random</h3>
+
+<p>Here is a surprising idea. To estimate how good a position is for you, play a few thousand games from it with both sides moving at random, and count how often you win. These random continuations are called <em>playouts</em>.</p>
+
+<p>Random play is terrible, so why should this work at all? Because the errors are symmetric. If your position is genuinely better (more pieces near the goal, an open lane, a blocked opponent), it stays better on average across many random continuations, even though each one is silly. The win fraction <span class="math">p̂</span> after <span class="math">n</span> playouts estimates a real number <span class="math">p</span>, and the usual binomial arithmetic tells you how precisely:</p>
+
+<p class="eq">standard error ≈ √( <i>p</i>(1 − <i>p</i>) / <i>n</i> )</p>
+
+<p>Near <span class="math">p = 0.5</span>, a thousand playouts give about ±1.6 percentage points. That is the budget we have to spread across all the moves we are considering.</p>
+
+<h3>Spending playouts wisely: the bandit problem</h3>
+
+<p>Suppose there are 20 legal moves. Splitting the playouts evenly wastes most of them on moves that are obviously bad after a few tries. Pouring them all into the current favourite risks never noticing that a move which looked poor early on was actually the best.</p>
+
+<p>This is the <em>multi-armed bandit</em> problem: a row of slot machines with unknown payout rates, and a limited number of coins. A classical solution, called UCB1, plays the machine that maximises</p>
+
+<p class="eq"><i>w</i><sub>i</sub> / <i>n</i><sub>i</sub> + <i>c</i> · √( ln <i>N</i> / <i>n</i><sub>i</sub> )</p>
+
+<p>where <span class="math">n<sub>i</sub></span> is how often move <span class="math">i</span> has been tried, <span class="math">w<sub>i</sub></span> how many of those tries were wins, and <span class="math">N</span> the total number of tries. The first term rewards moves that have done well (<em>exploitation</em>). The second term is large for moves that have been tried rarely (<em>exploration</em>). Because <span class="math">ln N</span> keeps growing, no move is abandoned forever; because it grows slowly, the bad moves get only a logarithmic share. The constant <span class="math">c</span> sets the balance between the two.</p>
+
+<h3>From one move to a whole tree</h3>
+
+<p>UCB1 chooses among the moves available now. MCTS applies the same rule recursively, growing a tree of positions in memory. Each simulation goes through four steps:</p>
+
+<figure class="wide">
+<div class="scrollfig">{{MCTS_DIAGRAM}}</div>
+<figcaption>One simulation. Selection walks down the tree choosing children by the UCB formula; expansion adds one new position; a random playout finishes the game; the result is added to every node on the path.</figcaption>
+</figure>
+
+<ol>
+  <li><strong>Selection.</strong> Start at the current position and repeatedly step to the child with the highest UCB score, until you reach a position with a move that has never been tried.</li>
+  <li><strong>Expansion.</strong> Try that move, and add the resulting position to the tree.</li>
+  <li><strong>Simulation.</strong> From there, play randomly to the end of the game.</li>
+  <li><strong>Backpropagation.</strong> Walk back up the path, adding one visit to every node and adding the result (1 for a win, 0 for a loss, ½ for a draw) from the point of view of the player who chose that node.</li>
+</ol>
+
+<p>Repeat this thousands of times. The tree grows unevenly: deep along lines that look promising for both players, shallow elsewhere. Near the root, the statistics become a minimax-like judgement (“this move looks good, unless the reply that the tree has learned to prefer refutes it”), while far below the tree the random playouts supply a rough estimate. When the time is up, the bot plays the move whose node was <em>visited</em> most often. Visit counts are more robust than average results, because a move with a high average from only a few visits may just have been lucky.</p>
+
+<p>Notice what is absent: there is no evaluation formula. Nobody told the bot that advancing is good or that a wall at home is useful. Whatever it believes, it found out from the outcomes of games.</p>
+
+<h3>Two adjustments that made a large difference</h3>
+
+<p>The textbook version, with <span class="math">c ≈ 1.4</span> and purely random playouts, played poorly here. It beat Greedy only about two times in three, and its visit counts were spread almost evenly over all moves. Two changes fixed it.</p>
+
+<p><strong>Decisive moves.</strong> In a purely random playout, a player with a piece one step from the goal wins only if the coin happens to choose that step. A position where you are about to win and one where you are about to lose then look nearly alike, and every estimate drifts toward 50%. So in our playouts, a player who can win immediately always does. This is not strategy, just the rules: “if you can win now, win”. It makes playouts far more informative, at the cost of checking for winning moves at every step, which we keep cheap with a precomputed table of which cells and directions can reach the goal.</p>
+
+<p><strong>A smaller exploration constant.</strong> Even with decisive moves, playout results in Spinta are noisy and the differences between candidate moves are small, typically a few percentage points. With <span class="math">c = 1.4</span> the exploration term swamps those differences and the search never commits. We use <span class="math">c = 0.5</span>.</p>
+
+<h3>Book-keeping: repetitions and ko</h3>
+
+<p>Ko and repetition rules depend on history, not only on the current position, so the search must remember which positions have occurred. Storing and comparing whole positions would be slow. Instead each position gets a 62-bit fingerprint by <em>Zobrist hashing</em>: assign a random 62-bit number to every (colour, cell) pair, and XOR together the numbers of all occupied cells. Because XOR is its own inverse, moving a piece updates the fingerprint with just two XORs: remove the old cell, add the new one. Two different positions collide only by bad luck; with a few million positions in play, the chance of any collision is around 2<sup>−20</sup>.</p>
+
+<p>Two moves per turn add a small twist. The tree no longer alternates strictly between players, since one player often makes two consecutive moves. Each node simply remembers who moved into it, and the result is credited to that player.</p>
+
+<h2>What “deep” means, in numbers</h2>
+
+<p>Tic-tac-toe is fun for about a week. After that, both players know how to force a draw, and thinking harder no longer changes anything. Chess has stayed interesting for centuries because there is always a better player: between a beginner and the strongest engines lie thousands of Elo points, and at every level along the way, a slightly stronger player wins more often than not.</p>
+
+<p>Game designers have turned this intuition into a definition. Picture a chain of players, each of whom reliably beats the next one down, say three games out of four. The <em>depth</em> of a game is the length of the longest such chain. Tic-tac-toe has a very short chain: the random player, the beginner who blocks obvious lines, and the perfect player. Chess has a very long one. Depth in this sense is statistical: it is not about how complicated the rules are, but about how many distinguishable levels of skill the game supports.</p>
+
+<p>We cannot hire a few dozen players of carefully graded strength for a game invented last month. But MCTS gives us something almost as good: a family of players that differ only in how much they think. If doubling the thinking keeps buying a consistent edge, each doubling is one more link in the chain.</p>
+
+<h3>The doubling test</h3>
+
+<p>We play the bot against a copy of itself with twice the simulations: 100 against 200, 200 against 400, and so on up to 6,400 against 12,800. Each pairing plays 200 games, with colours alternating. Results are expressed as Elo differences. If the stronger side scores a fraction <span class="math">p</span> of the points (a draw counts as half), the Elo difference is</p>
+
+<p class="eq"><i>D</i> = 400 · log<sub>10</sub>( <i>p</i> / (1 − <i>p</i>) )</p>
+
+<p>so 64% is about +100, 76% about +200, and 50% is 0. Elo differences add up along a chain: if A is 100 above B and B is 100 above C, A should score about 76% against C. That makes Elo the natural unit for chain length. A gap of 200, or three wins in four, is a reasonable “reliably beats”, so every 200 Elo of total range is roughly one more link.</p>
+
+<p>The two kinds of game leave different fingerprints. In a shallow game the gain per doubling shrinks: the early doublings help a lot, because 100 simulations is close to random play, but once both sides play “well enough” the results drift toward 50%, or toward all draws. In a deep game the gain per doubling stays roughly constant as far as you can afford to look.</p>
+
+<p>Two hundred games is not many. The 95% uncertainty on a single pairing is about ±50 Elo, shown as bars in the chart, so individual points wobble and only the overall trend means much.</p>
+
+<p>Here is what Spinta gave, with the current rules:</p>
+
+{{LADDER_TABLE}}
+
+<figure>
+{{LADDER_CHART}}
+<figcaption>{{LADDER_CAPTION}}</figcaption>
+</figure>
+
+{{LADDER_TEXT}}
+
+<h3>How far to trust the curve</h3>
+
+<ul>
+  <li><strong>It is a lower bound.</strong> A flat curve says the chain is at least as long as we measured. It cannot say how long it is beyond that. Every game with a finite number of positions is eventually solved by enough computation; the question is only whether that point is far beyond what people can do.</li>
+  <li><strong>Self-play exaggerates.</strong> A program playing a slightly weaker copy of itself exploits the exact blind spots of that copy. Against a different kind of opponent the gaps are usually smaller. The controls against Greedy and the saboteurs are there to check that the extra strength is real.</li>
+  <li><strong>It measures depth as this algorithm sees it.</strong> Random playouts are a peculiar way to judge a position. A game could look deep to MCTS because MCTS is clumsy at it, or shallow because some idea that humans would need years to find is obvious to random sampling. Human games are the final test.</li>
+</ul>
+
+<h2>Making it fast enough</h2>
+
+<p>All of this is written in plain Python, with no libraries. Python is slow, so a few tricks matter.</p>
+
+<ul>
+  <li><strong>PyPy.</strong> The same code run with PyPy, a Python implementation with a just-in-time compiler, plays out random games about ten times faster.</li>
+  <li><strong>A flat board for playouts.</strong> The rules engine uses readable, immutable positions. The search copies the position into a plain array of 61 cells with precomputed neighbour tables, and updates it in place.</li>
+  <li><strong>Uniform random moves without listing them.</strong> To pick a random legal move, pick a random (piece, direction) pair out of the 5 × 6 = 30 and try again if it is illegal. Conditioned on being accepted, every legal move is equally likely, so the result is exactly uniform, and on average it takes 30 / (number of legal moves) tries. That is much cheaper than generating the full list of legal moves at every step.</li>
+  <li><strong>Several trees at once.</strong> The strongest level on the web version runs several independent searches in parallel on your device’s processor cores and adds up their visit counts for each move at the root. The trees never talk to each other, which is wasteful, but it is simple and it scales.</li>
+</ul>
+
+<h2>What the robots cannot tell us</h2>
+
+<p>The bots can rule out the ways a game can be broken: endless draws, a decisive first-move advantage, a single cheap plan that beats everything, or a ceiling beyond which thinking stops paying. Spinta, with its current rules, passes these tests, with one result to keep an eye on: between the strongest bots, the second player wins about 57% of the games, so the compensation for moving first may be slightly too generous.</p>
+
+<p>Depth is necessary for a game to stay interesting, but it may not be enough. A game could reward calculation forever while every game unfolds along the same plan. <a href="https://claude.ai/artifact/XyECex874wGPwE3hBk5ssx">Part 2</a> asks whether depth brings variety with it, by looking at what the strongest bots actually do when they play each other.</p>
+
+<p>What the bots cannot say is whether the game is <em>fun</em>: whether the pushes feel clever, whether a comeback feels possible, whether you want a rematch. For that we need people. The search bot, meanwhile, gets a second job: it is the opponent in the solo mode.</p>
+
+<footer>Figures from self-play runs with the rules described above (radius 4, five pieces each, two moves per turn, ko and no-pushback). All code is plain Python 3 and runs under PyPy.</footer>
+</article>

@@ -61,15 +61,18 @@ browser o una finestra in incognito.
 Variabili d'ambiente: `HEXPUSH_SECRET_KEY`, `HEXPUSH_DEBUG` (default `1`),
 `HEXPUSH_HOSTS`, `HEXPUSH_DB` (file SQLite, default `web/db.sqlite3`), `HEXPUSH_BOT_DELAY`
 (pausa minima in secondi prima di ogni mossa del computer, default `0.7`) e
-`HEXPUSH_CHAMPION_SECONDS` (secondi di ricerca per mossa del livello Campione, default `3`).
+`HEXPUSH_CHAMPION_SIMS` / `HEXPUSH_CHAMPION_MAX_SECONDS` (simulazioni per mossa del
+livello Campione, in totale su tutti i worker, default `192000`, e tetto in secondi, default `15`).
 
 I livelli Facile, Medio, Difficile ed Esperto hanno un numero fisso di simulazioni
 (200, 1000, 4000, 12000): la forza è la stessa su qualunque dispositivo e cambia solo
 l'attesa. Il JavaScript fa ~15000-25000 simulazioni al secondo per albero (misurati con `make
 bench-js` dall'apertura), contro ~5000 di pypy3 e ~1000 di CPython: anche
-l'Esperto risponde in meno di un secondo. Il livello Campione invece lavora a tempo:
-alberi indipendenti su metà dei core logici (al massimo 8), con le visite sommate come
-in `hexpush/parallel.py`. La sua forza dipende quindi dal dispositivo di chi gioca.
+l'Esperto risponde in meno di un secondo. Il livello Campione divide le sue simulazioni
+tra alberi indipendenti su metà dei core logici (al massimo 8), con le visite sommate come
+in `hexpush/parallel.py`: più core rendono la mossa più veloce, non più forte (con un
+albero solo è anzi un po' più forte: 4 alberi da 1000 valgono circa uno da 3000). Il
+tetto di tempo scatta solo sui dispositivi lenti, e lì il livello si indebolisce.
 Ogni worker riparte dal sottoalbero della sua ricerca precedente quando la posizione ne
 discende (di solito ~20-25% di simulazioni in più, gratis): vale per tutti i livelli.
 

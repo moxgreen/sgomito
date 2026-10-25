@@ -1,0 +1,428 @@
+== Corpus
+  corpus            partite  A vince  patte  semimosse  spinte/mosse
+  mctsd16000           320   42.5%   0.0%       54.9        37.3%
+  mctsd2000            400   48.5%   0.0%       46.5        27.3%
+  mctsd250             400   53.2%   0.0%       53.5        18.2%
+  greedy               400   54.0%   0.0%       29.8        54.8%
+  random               400   26.2%  45.0%      166.7        11.4%
+
+== Aperture: mctsd16000 (320 partite)
+  semimossa  prefissi distinti  aperture effettive  quota della più comune   posizioni distinte
+          1         5 / 320                    4.9                   25.9%          5
+          2        49 / 320                   44.7                    5.3%         49
+          3       191 / 320                  151.2                    2.8%        170
+          5       306 / 320                  299.4                    1.2%        296
+          7       315 / 320                  313.1                    0.6%        313
+          9       317 / 320                  315.9                    0.6%        316
+         13       319 / 320                  318.6                    0.6%        318
+         17       320 / 320                  320.0                    0.3%        320
+         25       315 / 315                  315.0                    0.3%        315
+  prima mossa di A          partite   quota   A vince (IC 95%)
+  pedina centrale                83   25.9%   44.6% (34%-55%)
+  pedina esterna verso il centro     69   21.6%   36.2% (26%-48%)
+  pedina interna verso il centro     69   21.6%   49.3% (38%-61%)
+  pedina interna verso il bordo     54   16.9%   37.0% (25%-50%)
+  pedina esterna verso il bordo     45   14.1%   44.4% (31%-59%)
+  risposta di B (prime 3 semimosse)               partite   A vince
+  2,-4 SE | -3,4 NE | -2,4 NW                          9   33.3%
+  0,-4 SE | -4,4 NE | -3,4 NW                          7   42.9%
+  1,-4 SW | -1,4 NW | -2,4 NE                          6   50.0%
+  1,-4 SE | -3,4 NW | -4,4 NE                          6   66.7%
+  0,-4 SE | -3,4 NW | -4,4 NE                          6   33.3%
+  1,-4 SE | -2,4 NW | -3,4 NE                          6   50.0%
+  1,-4 SE | 0,4 NW | -1,4 NE                           6   33.3%
+  2,-4 SE | -3,4 NW | -4,4 NE                          6   66.7%
+  convinzione del bot (quota di visite della mossa scelta) per fase:
+    semimosse   0-0    21.3%  (mosse con quota > 50%:  0.0%)
+    semimosse   1-4    19.9%  (mosse con quota > 50%:  0.1%)
+    semimosse   5-14   28.5%  (mosse con quota > 50%: 15.1%)
+    semimosse  15-29   48.1%  (mosse con quota > 50%: 46.8%)
+    semimosse  30-59   45.3%  (mosse con quota > 50%: 42.7%)
+    semimosse  60-199  39.8%  (mosse con quota > 50%: 36.1%)
+
+== Aperture: mctsd2000 (400 partite)
+  semimossa  prefissi distinti  aperture effettive  quota della più comune   posizioni distinte
+          1         5 / 400                    5.0                   22.5%          5
+          2        50 / 400                   46.4                    4.2%         50
+          3       281 / 400                  251.0                    1.5%        229
+          5       400 / 400                  400.0                    0.2%        394
+          7       400 / 400                  400.0                    0.2%        400
+          9       400 / 400                  400.0                    0.2%        400
+         13       400 / 400                  400.0                    0.2%        400
+         17       400 / 400                  400.0                    0.2%        400
+         25       391 / 391                  391.0                    0.3%        391
+  prima mossa di A          partite   quota   A vince (IC 95%)
+  pedina centrale                90   22.5%   48.9% (39%-59%)
+  pedina interna verso il centro     85   21.2%   58.8% (48%-69%)
+  pedina esterna verso il bordo     78   19.5%   41.0% (31%-52%)
+  pedina interna verso il bordo     74   18.5%   51.4% (40%-62%)
+  pedina esterna verso il centro     73   18.2%   41.1% (31%-53%)
+  risposta di B (prime 3 semimosse)               partite   A vince
+  1,-4 SW | -1,4 NW | -4,4 NE                          6   50.0%
+  1,-4 SE | -2,4 NW | 0,4 W                            5   60.0%
+  0,-4 SE | -3,4 NE | -2,4 NE                          4   25.0%
+  2,-4 SE | -4,4 NW | -3,4 W                           4   50.0%
+  2,-4 SE | -3,4 NW | -2,4 NE                          4   75.0%
+  2,-4 SE | -2,4 NE | -1,4 NE                          3   33.3%
+  2,-4 SE | -3,4 NW | -4,4 NE                          3   66.7%
+  0,-4 SE | -3,4 NW | -4,4 E                           3   33.3%
+  convinzione del bot (quota di visite della mossa scelta) per fase:
+    semimosse   0-0    22.6%  (mosse con quota > 50%:  0.0%)
+    semimosse   1-4    19.9%  (mosse con quota > 50%:  0.1%)
+    semimosse   5-14   15.7%  (mosse con quota > 50%:  0.2%)
+    semimosse  15-29   24.6%  (mosse con quota > 50%: 11.6%)
+    semimosse  30-59   30.8%  (mosse con quota > 50%: 22.8%)
+    semimosse  60-199  32.6%  (mosse con quota > 50%: 24.8%)
+
+== Aperture: mctsd250 (400 partite)
+  semimossa  prefissi distinti  aperture effettive  quota della più comune   posizioni distinte
+          1         5 / 400                    5.0                   21.0%          5
+          2        50 / 400                   46.4                    3.5%         50
+          3       273 / 400                  244.3                    1.5%        224
+          5       396 / 400                  394.5                    0.5%        391
+          7       400 / 400                  400.0                    0.2%        399
+          9       400 / 400                  400.0                    0.2%        400
+         13       400 / 400                  400.0                    0.2%        400
+         17       400 / 400                  400.0                    0.2%        400
+         25       400 / 400                  400.0                    0.2%        400
+  prima mossa di A          partite   quota   A vince (IC 95%)
+  pedina centrale                84   21.0%   52.4% (42%-63%)
+  pedina interna verso il centro     83   20.8%   57.8% (47%-68%)
+  pedina esterna verso il bordo     79   19.8%   45.6% (35%-57%)
+  pedina esterna verso il centro     78   19.5%   52.6% (42%-63%)
+  pedina interna verso il bordo     76   19.0%   57.9% (47%-68%)
+  risposta di B (prime 3 semimosse)               partite   A vince
+  0,-4 SW | -2,4 NE | 0,4 W                            6   33.3%
+  2,-4 SE | -1,4 NE | -3,4 NW                          5   20.0%
+  0,-4 SE | -3,4 NW | -4,4 NE                          5   40.0%
+  2,-4 SE | -1,4 NE | -3,4 NE                          4   75.0%
+  1,-4 SE | -1,4 NE | 0,4 NW                           4   50.0%
+  2,-4 SE | -4,4 NE | -3,4 NW                          4    0.0%
+  2,-4 SE | -4,4 NE | -1,4 NW                          4   75.0%
+  2,-4 SE | -1,4 NW | -2,4 NE                          3   33.3%
+  convinzione del bot (quota di visite della mossa scelta) per fase:
+    semimosse   0-0    24.0%  (mosse con quota > 50%:  0.0%)
+    semimosse   1-4    21.1%  (mosse con quota > 50%:  0.0%)
+    semimosse   5-14   15.3%  (mosse con quota > 50%:  0.0%)
+    semimosse  15-29   13.9%  (mosse con quota > 50%:  0.2%)
+    semimosse  30-59   15.4%  (mosse con quota > 50%:  3.3%)
+    semimosse  60-199  20.0%  (mosse con quota > 50%: 10.9%)
+
+== Aperture: greedy (400 partite)
+  semimossa  prefissi distinti  aperture effettive  quota della più comune   posizioni distinte
+          1         5 / 400                    5.0                   22.8%          5
+          2        50 / 400                   46.4                    3.8%         50
+          3        87 / 400                   60.9                    3.8%         85
+          5       276 / 400                  248.1                    1.2%        242
+          7       383 / 400                  377.1                    0.5%        374
+          9       396 / 400                  394.5                    0.5%        389
+         13       400 / 400                  400.0                    0.2%        397
+         17       400 / 400                  400.0                    0.2%        399
+         25       326 / 326                  326.0                    0.3%        326
+  prima mossa di A          partite   quota   A vince (IC 95%)
+  pedina interna verso il bordo     91   22.8%   63.7% (53%-73%)
+  pedina esterna verso il bordo     84   21.0%   44.0% (34%-55%)
+  pedina centrale                78   19.5%   69.2% (58%-78%)
+  pedina interna verso il centro     77   19.2%   49.4% (38%-60%)
+  pedina esterna verso il centro     70   17.5%   41.4% (31%-53%)
+  risposta di B (prime 3 semimosse)               partite   A vince
+  1,-4 SE | 0,4 NW | -1,4 NE                          15   60.0%
+  0,-4 SW | 0,4 NW | -1,4 NE                          14   64.3%
+  2,-4 SE | -1,4 NW | -2,4 NE                         13   76.9%
+  1,-4 SW | -2,4 NW | -3,4 NE                         13   53.8%
+  0,-4 SE | -1,4 NW | -2,4 NE                         12   58.3%
+  0,-4 SE | -3,4 NE | -2,4 NW                         11   63.6%
+  1,-4 SW | -4,4 NE | -3,4 NW                         11   54.5%
+  1,-4 SE | -2,4 NW | -3,4 NE                         11   45.5%
+
+== Aperture: random (400 partite)
+  semimossa  prefissi distinti  aperture effettive  quota della più comune   posizioni distinte
+          1         5 / 400                    5.0                   22.0%          5
+          2        50 / 400                   47.4                    3.5%         50
+          3       289 / 400                  260.9                    1.5%        230
+          5       399 / 400                  398.6                    0.5%        389
+          7       400 / 400                  400.0                    0.2%        398
+          9       400 / 400                  400.0                    0.2%        400
+         13       400 / 400                  400.0                    0.2%        400
+         17       400 / 400                  400.0                    0.2%        400
+         25       400 / 400                  400.0                    0.2%        400
+  prima mossa di A          partite   quota   A vince (IC 95%)
+  pedina esterna verso il centro     88   22.0%   20.5% (13%-30%)
+  pedina esterna verso il bordo     87   21.8%   27.6% (19%-38%)
+  pedina centrale                83   20.8%   27.7% (19%-38%)
+  pedina interna verso il centro     74   18.5%   24.3% (16%-35%)
+  pedina interna verso il bordo     68   17.0%   32.4% (22%-44%)
+  risposta di B (prime 3 semimosse)               partite   A vince
+  1,-4 SE | -3,4 NE | -4,4 NE                          6   16.7%
+  0,-4 SE | -4,4 NE | -2,4 W                           5   40.0%
+  2,-4 SE | 0,4 NW | -2,4 NE                           4   50.0%
+  0,-4 SW | 0,4 NW | -1,4 NW                           3   33.3%
+  2,-4 SE | 0,4 NE | -4,4 NE                           3    0.0%
+  0,-4 SW | -4,4 NE | -1,4 NE                          3    0.0%
+  0,-4 SE | -1,4 NE | -3,4 E                           3    0.0%
+  1,-4 SE | -4,4 NE | -2,4 W                           3    0.0%
+
+== Stili: k-means su caratteristiche standardizzate di 2240 (partita, giocatore) di mctsd16000, mctsd2000, mctsd250
+  k=2: silhouette 0.197
+  k=3: silhouette 0.184
+  k=4: silhouette 0.149
+  k=5: silhouette 0.140
+  k=6: silhouette 0.142
+  k=7: silhouette 0.113
+  scelto k=2
+
+  caratteristica    media (sd)      gruppo 0    gruppo 1  
+  pedine            0.935 (0.121)     -0.23       +0.24    pedine diverse mosse almeno una volta / N
+  concentrazione    0.381 (0.080)     +0.34       -0.36    quota delle proprie mosse fatte dalla pedina più usata
+  casa              0.378 (0.107)     +0.10       -0.10    quota media delle proprie pedine sulla fila di casa
+  avanzamento       0.201 (0.050)     +0.53       -0.56    avanzamento medio delle proprie pedine (0 casa, 1 traguardo)
+  punta             0.508 (0.120)     +0.75       -0.79    avanzamento medio della pedina più avanzata
+  allungamento      0.494 (0.123)     +0.75       -0.79    distanza media tra la pedina più avanzata e la più arretrata
+  spinte_avv        0.138 (0.112)     +0.53       -0.55    quota delle proprie mosse che spingono un avversario
+  respinte          0.123 (0.101)     +0.53       -0.56    quota delle proprie mosse che ricacciano indietro un avversario
+  staffette         0.119 (0.078)     +0.01       -0.01    quota delle proprie mosse che spingono una propria pedina
+  ritirate          0.090 (0.062)     -0.25       +0.26    quota delle proprie mosse all'indietro
+  laterali          0.201 (0.094)     -0.36       +0.38    quota delle proprie mosse di lato
+  larghezza         0.332 (0.060)     -0.02       +0.02    distanza media delle proprie pedine dall'asse centrale (/R)
+  fianco            0.185 (0.088)     +0.13       -0.14    sbilanciamento su un lato delle pedine uscite di casa (/R)
+  contatto          0.227 (0.122)     +0.59       -0.62    quota media delle proprie pedine a contatto con un avversario
+  tempo             7.045 (3.442)     -0.63       +0.66    turno in cui una propria pedina entra per la prima volta nella metà avversaria
+
+  gruppo 0: punta molto avanti, schieramento allungato, attacco precoce
+    1149 (51%), vince 57.4% (55%-60%), come A 554 come B 595, semimosse medie 56
+  gruppo 1: punta corta, schieramento compatto, attacco tardivo
+    1091 (49%), vince 42.2% (39%-45%), come A 566 come B 525, semimosse medie 46
+
+  quota di ciascun gruppo per corpus (e vittorie in quel gruppo):
+  corpus             gruppo 0          gruppo 1         gruppi effettivi, dispersione (varianza media per caratteristica)
+  mctsd16000         90.5% ( 54%)     9.5% (  8%)    1.37   dispersione 0.90
+  mctsd2000          55.6% ( 60%)    44.4% ( 38%)    1.99   dispersione 0.87
+  mctsd250           15.6% ( 63%)    84.4% ( 48%)    1.54   dispersione 0.74
+  greedy             85.9% ( 55%)    14.1% ( 17%)    1.50   dispersione 0.85
+  random              1.1% ( 83%)    98.9% ( 50%)    1.06   dispersione 0.97
+
+  incontri tra stili (corpus principali): A vince %, partite
+  A \ B       gruppo 0      gruppo 1    
+  gruppo 0     46% (427)    81% (127) 
+  gruppo 1     23% (168)    52% (398) 
+
+== Vincitore contro perdente nella stessa partita: mctsd16000, tutta la partita (320 partite)
+  caratteristica    vincitore  perdente  differenza (in sd)  il vincitore ha di più
+  pedine               0.829     0.950        -1.00         29.1%
+  concentrazione       0.439     0.359        +1.01         79.4%
+  casa                 0.423     0.386        +0.35         62.5%
+  avanzamento          0.242     0.208        +0.68         69.4%
+  punta                0.633     0.552        +0.68         79.5%
+  allungamento         0.625     0.540        +0.68         80.9%
+  spinte_avv           0.207     0.254        -0.42         31.2%
+  respinte             0.190     0.223        -0.33         36.4%
+  staffette            0.135     0.118        +0.22         53.9%
+  ritirate             0.048     0.112        -1.03         19.7%
+  laterali             0.132     0.177        -0.48         30.6%
+  larghezza            0.331     0.336        -0.09         47.2%
+  fianco               0.204     0.201        +0.04         53.4%
+  contatto             0.324     0.345        -0.17         38.4%
+  tempo                4.091     5.069        -0.28         36.2%
+
+== Vincitore contro perdente nella stessa partita: mctsd16000, solo le prime 16 semimosse, partite di almeno 32 (278 partite)
+  caratteristica    vincitore  perdente  differenza (in sd)  il vincitore ha di più
+  pedine               0.582     0.641        -0.49         41.4%
+  concentrazione       0.510     0.493        +0.21         55.0%
+  casa                 0.568     0.558        +0.10         51.6%
+  avanzamento          0.122     0.115        +0.13         57.2%
+  punta                0.376     0.355        +0.18         57.4%
+  allungamento         0.376     0.354        +0.17         57.4%
+  spinte_avv           0.057     0.058        -0.01         49.6%
+  respinte             0.057     0.054        +0.03         50.5%
+  staffette            0.222     0.205        +0.21         52.2%
+  ritirate             0.012     0.018        -0.09         47.8%
+  laterali             0.059     0.089        -0.31         40.8%
+  larghezza            0.302     0.302        +0.00         50.7%
+  fianco               0.196     0.202        -0.07         43.9%
+  contatto             0.073     0.074        -0.00         48.9%
+  tempo                4.068     4.421        -0.10         40.5%
+
+== Vincitore contro perdente nella stessa partita: mctsd2000, tutta la partita (400 partite)
+  caratteristica    vincitore  perdente  differenza (in sd)  il vincitore ha di più
+  pedine               0.907     0.955        -0.40         40.4%
+  concentrazione       0.434     0.357        +0.96         76.5%
+  casa                 0.405     0.357        +0.45         65.2%
+  avanzamento          0.203     0.195        +0.16         56.8%
+  punta                0.540     0.469        +0.59         68.9%
+  allungamento         0.532     0.451        +0.66         69.5%
+  spinte_avv           0.123     0.146        -0.21         42.1%
+  respinte             0.111     0.130        -0.19         42.8%
+  staffette            0.128     0.120        +0.09         51.0%
+  ritirate             0.061     0.086        -0.41         39.0%
+  laterali             0.166     0.207        -0.44         39.5%
+  larghezza            0.316     0.343        -0.45         37.8%
+  fianco               0.184     0.188        -0.04         49.0%
+  contatto             0.218     0.223        -0.03         46.0%
+  tempo                5.860     6.952        -0.32         37.6%
+
+== Vincitore contro perdente nella stessa partita: mctsd2000, solo le prime 16 semimosse, partite di almeno 32 (345 partite)
+  caratteristica    vincitore  perdente  differenza (in sd)  il vincitore ha di più
+  pedine               0.740     0.783        -0.35         42.9%
+  concentrazione       0.438     0.412        +0.32         58.4%
+  casa                 0.555     0.537        +0.17         55.1%
+  avanzamento          0.093     0.090        +0.06         52.3%
+  punta                0.264     0.243        +0.17         60.0%
+  allungamento         0.263     0.241        +0.18         61.2%
+  spinte_avv           0.013     0.012        +0.02         50.4%
+  respinte             0.013     0.011        +0.01         50.3%
+  staffette            0.179     0.165        +0.18         52.5%
+  ritirate             0.039     0.042        -0.05         48.4%
+  laterali             0.187     0.196        -0.10         48.3%
+  larghezza            0.304     0.317        -0.22         42.0%
+  fianco               0.193     0.202        -0.10         42.9%
+  contatto             0.015     0.016        -0.00         49.3%
+  tempo                5.159     5.290        -0.04         46.7%
+
+== Vincitore contro perdente nella stessa partita: mctsd250, tutta la partita (400 partite)
+  caratteristica    vincitore  perdente  differenza (in sd)  il vincitore ha di più
+  pedine               0.961     0.990        -0.24         43.2%
+  concentrazione       0.383     0.319        +0.80         75.1%
+  casa                 0.369     0.337        +0.30         58.8%
+  avanzamento          0.191     0.179        +0.25         56.9%
+  punta                0.486     0.402        +0.69         73.2%
+  allungamento         0.471     0.382        +0.72         77.0%
+  spinte_avv           0.064     0.070        -0.05         45.6%
+  respinte             0.059     0.060        -0.00         48.1%
+  staffette            0.112     0.103        +0.12         55.0%
+  ritirate             0.099     0.129        -0.49         39.0%
+  laterali             0.235     0.269        -0.36         40.9%
+  larghezza            0.324     0.344        -0.33         40.8%
+  fianco               0.172     0.166        +0.07         53.0%
+  contatto             0.142     0.152        -0.08         37.4%
+  tempo                8.735    10.578        -0.54         30.8%
+
+== Vincitore contro perdente nella stessa partita: mctsd250, solo le prime 16 semimosse, partite di almeno 32 (384 partite)
+  caratteristica    vincitore  perdente  differenza (in sd)  il vincitore ha di più
+  pedine               0.804     0.820        -0.13         47.0%
+  concentrazione       0.401     0.388        +0.16         54.4%
+  casa                 0.560     0.553        +0.07         51.6%
+  avanzamento          0.079     0.077        +0.04         52.5%
+  punta                0.217     0.202        +0.13         57.4%
+  allungamento         0.216     0.200        +0.12         58.6%
+  spinte_avv           0.001     0.000        +0.01         50.3%
+  respinte             0.001     0.000        +0.01         50.3%
+  staffette            0.152     0.131        +0.27         53.8%
+  ritirate             0.072     0.078        -0.10         48.7%
+  laterali             0.263     0.254        +0.10         51.7%
+  larghezza            0.313     0.316        -0.05         47.8%
+  fianco               0.195     0.193        +0.02         49.0%
+  contatto             0.002     0.002        -0.00         49.9%
+  tempo                5.495     5.445        +0.01         53.0%
+
+== Vincitore contro perdente nella stessa partita: greedy, tutta la partita (400 partite)
+  caratteristica    vincitore  perdente  differenza (in sd)  il vincitore ha di più
+  pedine               0.884     0.951        -0.56         34.8%
+  concentrazione       0.396     0.345        +0.64         70.2%
+  casa                 0.304     0.288        +0.16         55.9%
+  avanzamento          0.262     0.250        +0.25         64.1%
+  punta                0.529     0.487        +0.35         73.6%
+  allungamento         0.499     0.447        +0.43         73.0%
+  spinte_avv           0.159     0.133        +0.23         54.9%
+  respinte             0.159     0.133        +0.26         54.9%
+  staffette            0.422     0.386        +0.46         59.4%
+  ritirate             0.000     0.000        +0.00         50.0%
+  laterali             0.000     0.000        +0.00         50.0%
+  larghezza            0.336     0.383        -0.78         28.9%
+  fianco               0.184     0.185        -0.01         49.8%
+  contatto             0.219     0.221        -0.02         50.2%
+  tempo                4.715     4.930        -0.06         46.9%
+
+== Vincitore contro perdente nella stessa partita: greedy, solo le prime 16 semimosse, partite di almeno 32 (129 partite)
+  caratteristica    vincitore  perdente  differenza (in sd)  il vincitore ha di più
+  pedine               0.811     0.802        +0.08         51.6%
+  concentrazione       0.420     0.409        +0.13         52.7%
+  casa                 0.434     0.448        -0.14         43.4%
+  avanzamento          0.148     0.146        +0.04         49.2%
+  punta                0.349     0.355        -0.05         48.4%
+  allungamento         0.343     0.350        -0.06         46.1%
+  spinte_avv           0.081     0.065        +0.15         51.6%
+  respinte             0.081     0.065        +0.16         51.6%
+  staffette            0.453     0.424        +0.36         57.4%
+  ritirate             0.000     0.000        +0.00         50.0%
+  laterali             0.000     0.000        +0.00         50.0%
+  larghezza            0.323     0.338        -0.25         42.6%
+  fianco               0.209     0.202        +0.08         51.2%
+  contatto             0.076     0.075        +0.01         52.7%
+  tempo                4.961     4.620        +0.10         59.3%
+
+== Vincitore contro perdente nella stessa partita: random, tutta la partita (220 partite)
+  caratteristica    vincitore  perdente  differenza (in sd)  il vincitore ha di più
+  pedine               1.000     1.000        +0.00         50.0%
+  concentrazione       0.267     0.265        +0.03         50.2%
+  casa                 0.242     0.261        -0.17         45.0%
+  avanzamento          0.254     0.223        +0.64         65.5%
+  punta                0.523     0.445        +0.64         72.5%
+  allungamento         0.484     0.408        +0.62         74.5%
+  spinte_avv           0.025     0.028        -0.02         45.5%
+  respinte             0.016     0.012        +0.04         53.6%
+  staffette            0.090     0.094        -0.05         45.2%
+  ritirate             0.212     0.238        -0.41         31.6%
+  laterali             0.329     0.334        -0.06         44.8%
+  larghezza            0.370     0.378        -0.12         47.7%
+  fianco               0.177     0.176        +0.01         48.2%
+  contatto             0.151     0.160        -0.07         36.8%
+  tempo               18.214    21.409        -0.93         39.1%
+
+== Vincitore contro perdente nella stessa partita: random, solo le prime 16 semimosse, partite di almeno 32 (220 partite)
+  caratteristica    vincitore  perdente  differenza (in sd)  il vincitore ha di più
+  pedine               0.828     0.820        +0.07         53.2%
+  concentrazione       0.382     0.390        -0.10         46.8%
+  casa                 0.553     0.572        -0.17         42.7%
+  avanzamento          0.073     0.069        +0.08         55.7%
+  punta                0.190     0.185        +0.04         55.2%
+  allungamento         0.189     0.184        +0.03         52.7%
+  spinte_avv           0.000     0.000        +0.00         50.0%
+  respinte             0.000     0.000        +0.00         50.0%
+  staffette            0.142     0.136        +0.08         52.5%
+  ritirate             0.090     0.113        -0.37         43.0%
+  laterali             0.291     0.282        +0.10         48.4%
+  larghezza            0.319     0.318        +0.02         51.4%
+  fianco               0.204     0.195        +0.10         55.0%
+  contatto             0.000     0.000        +0.00         50.0%
+  tempo                5.464     5.518        -0.02         47.3%
+
+== Finali: mctsd16000 (320 vittorie)
+  ultima mossa: passo: 86%  staffetta: 14%
+  cella d'arrivo: bordo: 35%  centro: 65%
+  vittorie in una mossa all'inizio dell'ultimo turno: 0: 21%  1: 22%  2: 52%  3+: 5%
+  minacce in una mossa davanti al perdente nel suo ultimo turno: 0: 3%  1: 30%  2: 61%  3+: 6%
+  pedine del perdente rimaste sulla sua fila di casa: 0: 22%  1: 46%  2: 22%  3+: 10%
+  mosse usate nell'ultimo turno: 1: 80%  2: 19%  3: 1%
+
+== Finali: mctsd2000 (400 vittorie)
+  ultima mossa: passo: 95%  staffetta: 5%
+  cella d'arrivo: bordo: 32%  centro: 68%
+  vittorie in una mossa all'inizio dell'ultimo turno: 0: 7%  1: 20%  2: 71%  3+: 2%
+  minacce in una mossa davanti al perdente nel suo ultimo turno: 0: 2%  1: 19%  2: 77%  3+: 2%
+  pedine del perdente rimaste sulla sua fila di casa: 0: 32%  1: 47%  2: 18%  3+: 2%
+  mosse usate nell'ultimo turno: 1: 93%  2: 5%  3: 2%
+
+== Finali: mctsd250 (400 vittorie)
+  ultima mossa: passo: 96%  staffetta: 4%
+  cella d'arrivo: bordo: 31%  centro: 69%
+  vittorie in una mossa all'inizio dell'ultimo turno: 0: 6%  1: 27%  2: 66%  3+: 1%
+  minacce in una mossa davanti al perdente nel suo ultimo turno: 0: 4%  1: 25%  2: 70%  3+: 1%
+  pedine del perdente rimaste sulla sua fila di casa: 0: 36%  1: 49%  2: 14%  3+: 1%
+  mosse usate nell'ultimo turno: 1: 95%  2: 4%  3: 1%
+
+== Finali: greedy (400 vittorie)
+  ultima mossa: passo: 98%  staffetta: 2%
+  cella d'arrivo: bordo: 36%  centro: 64%
+  vittorie in una mossa all'inizio dell'ultimo turno: 0: 28%  1: 37%  2: 25%  3+: 9%
+  minacce in una mossa davanti al perdente nel suo ultimo turno: 0: 29%  1: 46%  2: 16%  3+: 9%
+  pedine del perdente rimaste sulla sua fila di casa: 0: 51%  1: 45%  2: 4%
+  mosse usate nell'ultimo turno: 1: 72%  2: 28%
+
+== Finali: random (220 vittorie)
+  ultima mossa: passo: 88%  staffetta: 12%
+  cella d'arrivo: bordo: 46%  centro: 54%
+  vittorie in una mossa all'inizio dell'ultimo turno: 0: 7%  1: 35%  2: 50%  3+: 7%
+  minacce in una mossa davanti al perdente nel suo ultimo turno: 0: 8%  1: 35%  2: 50%  3+: 7%
+  pedine del perdente rimaste sulla sua fila di casa: 0: 49%  1: 36%  2: 14%  3+: 2%
+  mosse usate nell'ultimo turno: 1: 55%  2: 43%  3: 3%
+

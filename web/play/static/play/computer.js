@@ -55,7 +55,7 @@ export class Computer {
         for (const [id, p] of this.pending) {
           if (p.worker === w) {
             this.pending.delete(id);
-            p.reject(new Error(ev.message || "errore nel worker"));
+            p.reject(new Error(ev.message || "worker error"));
           }
         }
       };
@@ -73,15 +73,24 @@ export class Computer {
     });
   }
 
-  /** Mossa [q, r, d] per lo stato `state` (serialize.search_state_to_dict).
-   * nSim simulazioni per worker, timeLimit secondi (o null), workers un numero o "auto",
+  /** {move, info} per lo stato `state` (serialize.search_state_to_dict): move è
+   * [q, r, d], info le statistiche della ricerca per il registro (worker, simulazioni
+   * nuove ed ereditate dall'albero precedente, mossa obbligata o vincente).
+   * nSim simulazioni in totale, divise tra i worker; timeLimit secondi (o null),
+   * workers un numero o "auto",
    * policy la gestione del tempo (mcts.policyStop) o null: ogni worker la applica al
    * proprio albero. */
   async choose(state, { nSim, timeLimit = null, workers = 1, policy = null }) {
     const n = workers === "auto" ? defaultWorkers() : workers;
     const seeds = crypto.getRandomValues(new Uint32Array(n));
+    const each = Math.ceil(nSim / n);
     const results = await Promise.all(
-      Array.from(seeds, (seed, i) => this.run(i, { state, nSim, timeLimit, seed, policy })));
-    return combine(results);
+      Array.from(seeds, (seed, i) => this.run(i, { state, nSim: each, timeLimit, seed, policy })));
+    const info = { workers: n, forced: results.some((res) => res.move !== undefined) };
+    if (!info.forced) {
+      info.sims = results.reduce((s, res) => s + res.sims, 0);
+      info.reused = results.reduce((s, res) => s + res.reused, 0);
+    }
+    return { move: combine(results), info };
   }
 }

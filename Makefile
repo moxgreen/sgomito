@@ -79,7 +79,7 @@ check: venv
 
 # il registro del playtest in CSV, letto dal database (anche a server spento)
 registry: migrate
-	$(PYTHON) web/manage.py registro --out results/playtest
+	$(PYTHON) web/manage.py registry --out results/playtest
 
 # le GIF degli esempi di "Come si gioca", giocate sul motore (web/tools/gif_regole.py)
 gifs: venv

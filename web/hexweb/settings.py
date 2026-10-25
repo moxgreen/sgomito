@@ -1,5 +1,5 @@
 """Impostazioni del frontend web. Le partite in corso stanno in memoria; il registro
-del playtesting (giocatori, partite, giudizi) in SQLite."""
+del playtesting (giocatori, nickname registrati, partite, giudizi) in SQLite."""
 import os
 import sys
 from pathlib import Path
@@ -44,7 +44,7 @@ TEMPLATES = [{
                                        "play.context.assets"]},
 }]
 
-LANGUAGE_CODE = "it"
+LANGUAGE_CODE = "en"
 TIME_ZONE = "Europe/Rome"
 USE_I18N = False
 USE_TZ = True
@@ -53,5 +53,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # pausa minima (secondi) prima di ogni mossa del computer, per vederle una alla volta
 HEXPUSH_BOT_DELAY = float(os.environ.get("HEXPUSH_BOT_DELAY", "0.7"))
-# secondi di ricerca per ogni mossa del livello Campione (nel browser, su tutti i core)
-HEXPUSH_CHAMPION_SECONDS = float(os.environ.get("HEXPUSH_CHAMPION_SECONDS", "3"))
+# livello Campione: simulazioni per mossa in totale, divise tra i Web Worker (uno per ogni
+# due core), e tetto in secondi per i dispositivi lenti
+HEXPUSH_CHAMPION_SIMS = int(os.environ.get("HEXPUSH_CHAMPION_SIMS", "192000"))
+HEXPUSH_CHAMPION_MAX_SECONDS = float(os.environ.get("HEXPUSH_CHAMPION_MAX_SECONDS", "15"))

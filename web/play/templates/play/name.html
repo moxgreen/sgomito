@@ -1,19 +1,15 @@
 {% extends "play/base.html" %}
-{% block title %}Come ti chiami? — Spinta{% endblock %}
+{% block title %}Choose a nickname — Spinta{% endblock %}
 {% block content %}
 <form method="post" class="home name-form">
   {% csrf_token %}
-  <h1>Come ti chiami?</h1>
+  <h1>Choose a nickname</h1>
   <p class="intro">
-    {% if free %}Ti hanno invitato a una partita di Spinta: scrivi il tuo nome per prendere posto.
-    {% else %}La partita ha già due giocatori: scrivi il tuo nome per guardarla.{% endif %}
-    Le partite vengono registrate per il playtest e alla fine ti chiediamo quanto ti sei divertito.
+    {% if free %}You've been invited to a game of Spinta: choose a nickname to take your seat.
+    {% else %}This game already has two players: choose a nickname to watch it.{% endif %}
   </p>
   {% if error %}<p class="error">{{ error|capfirst }}.</p>{% endif %}
-  <label class="name-field">Il tuo nome
-    <input type="text" name="name" value="{{ name }}" maxlength="30" required autofocus
-      autocomplete="nickname">
-  </label>
-  <button type="submit">{% if free %}Gioca{% else %}Guarda{% endif %}</button>
+  {% include "play/nickname.html" with autofocus=True %}
+  <button type="submit">{% if free %}Play{% else %}Watch{% endif %}</button>
 </form>
 {% endblock %}

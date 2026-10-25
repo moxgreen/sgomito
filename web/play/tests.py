@@ -2,6 +2,7 @@
 import asyncio
 import csv
 import io
+import json
 import random
 
 from channels.db import database_sync_to_async
@@ -9,14 +10,14 @@ from channels.testing import WebsocketCommunicator
 from django.conf import settings
 from django.test import TestCase, TransactionTestCase, override_settings
 
-from hexpush.game import from_board, legal_moves
+from hexpush.game import Move, from_board, legal_moves
 from hexpush.rules import Ruleset
 from hexweb.asgi import application
 
 from . import records
 from .consumers import NOT_FOUND, PID_COOKIE
 from .matches import BOT, MATCHES
-from .models import Game, Player, Rating
+from .models import Game, Nickname, Player, Rating
 
 RULES = Ruleset(ko=True, no_pushback=True, moves_per_turn=2)
 E, W, SE, NW, NE, SW = range(6)
@@ -34,7 +35,7 @@ def communicator(match_id, pid=None):
     headers = [(b"origin", b"http://localhost"), (b"host", b"localhost")]
     if pid is not None:
         headers.append((b"cookie", f"{PID_COOKIE}={pid}".encode()))
-    return WebsocketCommunicator(application, f"/ws/partita/{match_id}/", headers=headers)
+    return WebsocketCommunicator(application, f"/ws/game/{match_id}/", headers=headers)
 
 
 async def receive_until(comm, pred, timeout=10):
@@ -102,7 +103,7 @@ class ConsumerTests(TransactionTestCase):
         match, a, sa, b, sb = await self.two_players()
         c, sc = await join(match.id, "p3")
         self.assertEqual((sa["you"], sb["you"], sc["you"]), ("A", "B", None))
-        self.assertEqual(sb["players"]["A"], {"kind": "umano", "name": "Ada", "online": True})
+        self.assertEqual(sb["players"]["A"], {"kind": "human", "name": "Ada", "online": True})
         self.assertEqual(sb["players"]["B"]["name"], "Bruno")
         game = await adb(Game.objects.get)(pk=match.id)
         self.assertEqual((game.player_a_id, game.player_b_id),
@@ -118,7 +119,7 @@ class ConsumerTests(TransactionTestCase):
         match = await adb(make_match)()
         comm, st = await join(match.id, "senza-nome")
         self.assertIsNone(st["you"])
-        self.assertEqual(st["players"]["B"]["kind"], "libero")
+        self.assertEqual(st["players"]["B"]["kind"], "free")
         await comm.disconnect()
 
     async def test_unknown_match_is_closed(self):
@@ -140,7 +141,12 @@ class ConsumerTests(TransactionTestCase):
             self.assertEqual([m["player"] for m in st["last_turn"]], [] if you == "A" else ["A"])
         game = await adb(Game.objects.get)(pk=match.id)
         self.assertEqual(game.plies, 1)
-        self.assertEqual(game.moves[0][:4], ["A", move["q"], move["r"], move["d"]])
+        rec = game.moves[0]
+        self.assertEqual((rec["ply"], rec["player"], rec["from"], rec["d"], rec["to"]),
+                         (0, "A", [move["q"], move["r"]], move["d"], move["to"]))
+        self.assertEqual(rec["piece"], match.piece_at[tuple(move["to"])])
+        self.assertEqual((game.name_a, game.name_b), ("Ada", "Bruno"))
+        self.assertEqual(len(game.pieces), 10)
         await a.disconnect()
         await b.disconnect()
 
@@ -149,13 +155,13 @@ class ConsumerTests(TransactionTestCase):
         # pedina di A in fila di casa: verso NW c'è il muro
         await a.send_json_to({"type": "move", "q": 0, "r": -4, "d": NW})
         err = await receive_until(a, is_error)
-        self.assertEqual(err["message"], "Mossa non valida.")
+        self.assertEqual(err["message"], "Invalid move.")
         st = await receive_until(a, is_state())
         self.assertEqual(st["ply"], 0)
         await a.send_json_to({"type": "move", "q": "x"})
-        self.assertEqual((await receive_until(a, is_error))["message"], "Mossa malformata.")
+        self.assertEqual((await receive_until(a, is_error))["message"], "Malformed move.")
         await a.send_json_to({"type": "boh"})
-        self.assertEqual((await receive_until(a, is_error))["message"], "Messaggio sconosciuto.")
+        self.assertEqual((await receive_until(a, is_error))["message"], "Unknown message.")
         self.assertEqual(match.state.ply, 0)
         await a.disconnect()
         await b.disconnect()
@@ -166,12 +172,12 @@ class ConsumerTests(TransactionTestCase):
         # B prova a muovere una sua pedina mentre tocca ad A
         cell = next((q, r) for q, r, p in sb["board"] if p == "B")
         await b.send_json_to({"type": "move", "q": cell[0], "r": cell[1], "d": NW})
-        self.assertEqual((await receive_until(b, is_error))["message"], "Non è il tuo turno.")
+        self.assertEqual((await receive_until(b, is_error))["message"], "It's not your turn.")
         await c.send_json_to(move_msg(sa["legal"][0]))
-        self.assertIn("Stai guardando", (await receive_until(c, is_error))["message"])
+        self.assertIn("You are watching", (await receive_until(c, is_error))["message"])
         # tra due umani non c'è nessun computer di cui mandare le mosse
         await a.send_json_to(dict(move_msg(sa["legal"][0]), type="bot_move", ply=0))
-        self.assertIn("contro il computer", (await receive_until(a, is_error))["message"])
+        self.assertIn("facing the computer", (await receive_until(a, is_error))["message"])
         self.assertEqual(match.state.ply, 0)
         for comm in (a, b, c):
             await comm.disconnect()
@@ -197,6 +203,11 @@ class ConsumerTests(TransactionTestCase):
         self.assertFalse(sb["can_undo"])
         game = await adb(Game.objects.get)(pk=match.id)
         self.assertEqual((game.undos, len(game.moves)), (1, 1))
+        self.assertEqual(len(game.undone), 1)
+        undone = game.undone[0]["moves"]
+        self.assertEqual([(m["ply"], m["player"]) for m in undone], [(1, "B")])
+        # la pedina annullata torna dov'era, con il suo nome
+        self.assertEqual(match.piece_at[tuple(undone[0]["from"])], undone[0]["piece"])
         # dopo la seconda mossa il turno è chiuso: niente annullamento
         await b.send_json_to(move_msg(sb["legal"][0]))
         sb = await receive_until(b, is_state(ply=2))
@@ -205,15 +216,15 @@ class ConsumerTests(TransactionTestCase):
         self.assertEqual(sb["to_move"], "A")
         await b.send_json_to({"type": "undo"})
         err = await receive_until(b, is_error)
-        self.assertEqual(err["message"], "Non c'è niente da annullare.")
+        self.assertEqual(err["message"], "There is nothing to undo.")
         self.assertEqual(match.state.ply, 3)
         await a.disconnect()
         await b.disconnect()
 
     async def test_game_over_by_goal(self):
         match, a, _, b, _ = await self.two_players()
-        match.state = match.turn_start = from_board(
-            RULES, {(0, 3): "A", (1, 3): "A", (0, -3): "B", (1, -3): "B"}, "A")
+        match.reset(from_board(
+            RULES, {(0, 3): "A", (1, 3): "A", (0, -3): "B", (1, -3): "B"}, "A"))
         await a.send_json_to({"type": "move", "q": 0, "r": 3, "d": SE})
         for comm in (a, b):
             st = await receive_until(comm, is_state(ply=1))
@@ -222,7 +233,7 @@ class ConsumerTests(TransactionTestCase):
             self.assertFalse(st["can_undo"])
             self.assertIsNone(st["rated"])
         await a.send_json_to({"type": "move", "q": 1, "r": 3, "d": SE})
-        self.assertEqual((await receive_until(a, is_error))["message"], "La partita è finita.")
+        self.assertEqual((await receive_until(a, is_error))["message"], "The game is over.")
         game = await adb(Game.objects.get)(pk=match.id)
         self.assertEqual((game.result, game.reason), ("A", "goal"))
         self.assertIsNotNone(game.ended)
@@ -234,7 +245,7 @@ class ConsumerTests(TransactionTestCase):
         c, _ = await join(match.id, "p3")
         # prima della fine niente giudizio
         await a.send_json_to({"type": "rate", "stars": 4})
-        self.assertIn("finita", (await receive_until(a, is_error))["message"])
+        self.assertIn("once it is over", (await receive_until(a, is_error))["message"])
         await b.send_json_to({"type": "resign"})
         st = await receive_until(b, is_state(result="A"))
         self.assertEqual((st["reason"], st["resigned"]), ("resign", "B"))
@@ -242,10 +253,10 @@ class ConsumerTests(TransactionTestCase):
         await b.send_json_to({"type": "rate", "stars": 2, "comment": "troppo lunga"})
         st = await receive_until(b, is_state(rated=2))
         await c.send_json_to({"type": "rate", "stars": 5})
-        self.assertIn("Solo chi ha giocato", (await receive_until(c, is_error))["message"])
+        self.assertIn("Only the players", (await receive_until(c, is_error))["message"])
         for bad in (0, 6, "5", True, None):
             await a.send_json_to({"type": "rate", "stars": bad})
-            self.assertIn("da 1 a 5", (await receive_until(a, is_error))["message"])
+            self.assertIn("from 1 to 5", (await receive_until(a, is_error))["message"])
         await a.send_json_to({"type": "rate", "stars": 3})
         await receive_until(a, is_state(rated=3))
         await a.send_json_to({"type": "rate", "stars": 5, "comment": "bella"})  # cambia idea
@@ -272,13 +283,14 @@ class ConsumerTests(TransactionTestCase):
         self.assertEqual(sb2["board"], sb["board"])
         self.assertTrue(sb2["can_undo"])                  # la prima mossa di B è ancora sua
         self.assertEqual(sb2["players"]["A"]["name"], "Ada")
+        self.assertEqual(MATCHES[match.id].piece_at, match.piece_at)  # stessi nomi
         await b.disconnect()
 
     async def test_bot_replies_with_two_moves(self):
-        match = await adb(make_match)("A", "facile")
+        match = await adb(make_match)("A", "easy")
         self.assertEqual(match.seats["B"], BOT)
         a, sa = await join(match.id, "p1")
-        self.assertEqual(sa["players"]["B"]["name"], "computer (Facile)")
+        self.assertEqual(sa["players"]["B"]["name"], "computer (Easy)")
         self.assertNotIn("bot", sa)
         await a.send_json_to(move_msg(sa["legal"][0]))
         st = await receive_until(a, is_state(ply=1, thinking=True))
@@ -292,6 +304,7 @@ class ConsumerTests(TransactionTestCase):
         self.assertEqual([m["player"] for m in st["last_turn"]], ["B", "B"])
         game = await adb(Game.objects.get)(pk=match.id)
         self.assertEqual((game.plies, game.bot_side, game.mode), (3, "B", "computer"))
+        self.assertEqual((game.name_a, game.name_b), ("Ada", ""))
         await a.send_json_to({"type": "resign"})
         await receive_until(a, is_state(result="B"))
         await a.send_json_to({"type": "rate", "stars": 4})
@@ -299,7 +312,7 @@ class ConsumerTests(TransactionTestCase):
         await a.disconnect()
 
     async def test_bot_opens_when_it_is_first(self):
-        match = await adb(make_match)("B", "facile")
+        match = await adb(make_match)("B", "easy")
         b, st = await join(match.id, "p1")
         self.assertEqual((st["you"], st["thinking"], st["bot"]["ply"]), ("B", True, 0))
         # chi chiude la pagina (o il server che riparte) ritrova la richiesta
@@ -313,27 +326,35 @@ class ConsumerTests(TransactionTestCase):
         await b.disconnect()
 
     async def test_bot_move_checks(self):
-        match = await adb(make_match)("B", "facile")
+        match = await adb(make_match)("B", "easy")
         b, st = await join(match.id, "p1")
         c, sc = await join(match.id, "p3")
         self.assertNotIn("bot", sc)                       # chi guarda non calcola
         msg = bot_msg(st)
         await c.send_json_to(msg)
-        self.assertIn("contro il computer", (await receive_until(c, is_error))["message"])
+        self.assertIn("facing the computer", (await receive_until(c, is_error))["message"])
         await b.send_json_to(dict(msg, q=0, r=-4, d=NW))  # pedina del computer contro il muro
-        self.assertEqual((await receive_until(b, is_error))["message"], "Mossa non valida.")
+        self.assertEqual((await receive_until(b, is_error))["message"], "Invalid move.")
         await b.send_json_to(dict(msg, ply="x"))
-        self.assertEqual((await receive_until(b, is_error))["message"], "Mossa malformata.")
-        await b.send_json_to(msg)
+        self.assertEqual((await receive_until(b, is_error))["message"], "Malformed move.")
+        # statistiche della ricerca: si tengono solo le chiavi note con valori numerici
+        await b.send_json_to(dict(msg, info={"workers": 4, "sims": 812, "reused": 90,
+                                             "ms": 1234, "forced": False, "evil": "x",
+                                             "reused_by": [1]}))
         st = await receive_until(b, is_state(ply=1))
         self.assertNotIn("bot", st)
         # la stessa risposta da un'altra scheda arriva in ritardo: ignorata senza errori
         await b.send_json_to(msg)
         await b.send_json_to(dict(msg, ply=1))            # ora tocca all'umano
-        self.assertEqual((await receive_until(b, is_error))["message"], "Non tocca al computer.")
+        self.assertEqual((await receive_until(b, is_error))["message"],
+                         "It's not the computer's turn.")
         self.assertEqual(match.state.ply, 1)
         game = await adb(Game.objects.get)(pk=match.id)
-        self.assertEqual(game.moves[0][:4], ["A", msg["q"], msg["r"], msg["d"]])
+        rec = game.moves[0]
+        self.assertEqual((rec["player"], rec["from"], rec["d"]),
+                         ("A", [msg["q"], msg["r"]], msg["d"]))
+        self.assertEqual(rec["bot"], {"workers": 4, "sims": 812, "reused": 90, "ms": 1234,
+                                      "forced": False})
         for comm in (b, c):
             await comm.disconnect()
 
@@ -370,20 +391,20 @@ class ViewTests(TestCase):
         resp = self.client.get("/")
         self.assertEqual(resp.status_code, 200)
         self.assertIn(PID_COOKIE, resp.cookies)
-        self.assertContains(resp, "Gioca con un amico")
-        self.assertContains(resp, "Esperto")
+        self.assertContains(resp, "Play with a friend")
+        self.assertContains(resp, "Expert")
         self.assertContains(resp, 'name="name"')
 
     def test_name_is_required(self):
-        resp = self.client.post("/nuova/", {"mode": "amico", "name": "   "})
+        resp = self.client.post("/new/", {"mode": "friend", "name": "   "})
         self.assertEqual(resp.status_code, 400)
-        self.assertContains(resp, "scrivi il tuo nome", status_code=400)
-        resp = self.client.post("/nuova/", {"mode": "amico", "name": "x" * 31})
+        self.assertContains(resp, "choose a nickname", status_code=400)
+        resp = self.client.post("/new/", {"mode": "friend", "name": "x" * 31})
         self.assertEqual(resp.status_code, 400)
 
     def test_create_friend_match(self):
         pid = self.pid()
-        resp = self.client.post("/nuova/", {"mode": "amico", "color": "B", "R": 4, "N": 5,
+        resp = self.client.post("/new/", {"mode": "friend", "color": "B", "R": 4, "N": 5,
                                             "K": 1, "name": "  Ada  Lovelace "})
         self.assertEqual(resp.status_code, 302)
         match_id = resp.url.rstrip("/").split("/")[-1]
@@ -393,18 +414,18 @@ class ViewTests(TestCase):
         self.assertEqual(match.rules, RULES)
         self.assertEqual(Player.objects.get(pid=pid).name, "Ada Lovelace")
         game = Game.objects.get(pk=match_id)
-        self.assertEqual((game.mode, game.player_b.name, game.player_a), ("amico", "Ada Lovelace", None))
+        self.assertEqual((game.mode, game.player_b.name, game.player_a), ("friend", "Ada Lovelace", None))
         page = self.client.get(resp.url)
         self.assertContains(page, f'data-match="{match_id}"')
-        self.assertContains(page, "Manda questo link")
+        self.assertContains(page, "Send this link")
         # il nome resta: la home lo propone già scritto
         self.assertContains(self.client.get("/"), 'value="Ada Lovelace"')
 
     def test_invited_player_must_give_a_name(self):
         match = make_match()
-        url = f"/partita/{match.id}/"
+        url = f"/game/{match.id}/"
         page = self.client.get(url)
-        self.assertContains(page, "Come ti chiami?")
+        self.assertContains(page, "Choose a nickname")
         self.assertNotContains(page, "data-match")
         resp = self.client.post(url, {"name": ""})
         self.assertEqual(resp.status_code, 400)
@@ -414,7 +435,7 @@ class ViewTests(TestCase):
 
     def test_create_computer_match_with_variant(self):
         self.pid()
-        resp = self.client.post("/nuova/", {"mode": "computer", "color": "A", "level": "esperto",
+        resp = self.client.post("/new/", {"mode": "computer", "color": "A", "level": "expert",
                                             "R": 5, "N": 6, "K": 2, "goal_wide": "on",
                                             "name": "Ada"})
         self.assertEqual(resp.status_code, 302)
@@ -426,26 +447,27 @@ class ViewTests(TestCase):
         self.assertEqual(Game.objects.get(pk=match.id).bot_side, "B")
 
     def test_invalid_rules(self):
-        resp = self.client.post("/nuova/", {"mode": "amico", "R": 4, "N": 3, "K": 4,
+        resp = self.client.post("/new/", {"mode": "friend", "R": 4, "N": 3, "K": 4,
                                             "name": "Ada"})
         self.assertEqual(resp.status_code, 400)
-        self.assertContains(resp, "Impossibile creare la partita", status_code=400)
+        self.assertContains(resp, "Couldn't create the game", status_code=400)
 
     def test_unknown_match_page(self):
-        self.assertEqual(self.client.get("/partita/nonesiste/").status_code, 404)
+        self.assertEqual(self.client.get("/game/nonesiste/").status_code, 404)
 
     def test_create_champion_match(self):
         self.pid()
-        resp = self.client.post("/nuova/", {"mode": "computer", "color": "A", "level": "campione",
-                                            "name": "Ada"})
+        resp = self.client.post("/new/", {"mode": "computer", "color": "A", "level": "champion",
+                                          "name": "Ada"})
         match = MATCHES[resp.url.rstrip("/").split("/")[-1]]
         req = match.bot_request()
-        self.assertEqual((req["workers"], req["time_limit"]),
-                         ("auto", settings.HEXPUSH_CHAMPION_SECONDS))
-        self.assertContains(self.client.get("/"), "Campione (")
+        self.assertEqual((req["n_sim"], req["workers"], req["time_limit"]),
+                         (settings.HEXPUSH_CHAMPION_SIMS, "auto",
+                          settings.HEXPUSH_CHAMPION_MAX_SECONDS))
+        self.assertContains(self.client.get("/"), "Champion (")
 
     def test_unknown_level(self):
-        resp = self.client.post("/nuova/", {"mode": "computer", "level": "dio", "name": "Ada"})
+        resp = self.client.post("/new/", {"mode": "computer", "level": "god", "name": "Ada"})
         self.assertEqual(resp.status_code, 400)
 
     def test_registry(self):
@@ -457,26 +479,125 @@ class ViewTests(TestCase):
         records.save_match(match)
         records.save_rating(match, "A", 5, "divertente")
         records.save_rating(match, "B", 3, "")
-        other = make_match(level="medio", pid="p3", name="Carla")
+        other = make_match(level="medium", pid="p3", name="Carla")
         records.save_match(other)
 
-        page = self.client.get("/registro/")
-        self.assertContains(page, "Registro del playtest")
-        self.assertContains(page, "2 partite, 1 finita,\n    2 giudizi")
-        self.assertContains(page, "4,00")
+        page = self.client.get("/registry/")
+        self.assertContains(page, "Playtest registry")
+        self.assertContains(page, "2 games, 1 finished,\n    2 ratings")
+        self.assertContains(page, "4.00")
         self.assertContains(page, "divertente")
-        self.assertContains(page, "computer (Medio)")
+        self.assertContains(page, "computer (Medium)")
 
         rows = list(csv.DictReader(io.StringIO(
-            self.client.get("/registro/partite.csv").content.decode())))
+            self.client.get("/registry/games.csv").content.decode())))
         row = next(r for r in rows if r["id"] == match.id)
-        self.assertEqual((row["giocatore_A"], row["giocatore_B"], row["esito"], row["motivo"],
-                          row["stelle_A"], row["stelle_B"], row["semimosse"]),
-                         ("Ada", "Bruno", "A", "resign", "5", "3", "1"))
+        self.assertEqual((row["player_A"], row["player_B"], row["result"], row["reason"],
+                          row["stars_A"], row["stars_B"], row["plies"], row["registered_A"]),
+                         ("Ada", "Bruno", "A", "resign", "5", "3", "1", "0"))
+        self.assertEqual(json.loads(row["moves"])[0]["piece"], match.log[0][2]["piece"])
+        self.assertEqual(len(json.loads(row["pieces"])), 10)
         ratings = list(csv.DictReader(io.StringIO(
-            self.client.get("/registro/giudizi.csv").content.decode())))
-        self.assertEqual(sorted((r["giocatore"], r["stelle"]) for r in ratings),
+            self.client.get("/registry/ratings.csv").content.decode())))
+        self.assertEqual(sorted((r["player"], r["stars"]) for r in ratings),
                          [("Ada", "5"), ("Bruno", "3")])
-        data = self.client.get(f"/registro/{match.id}.json").json()
+        data = self.client.get(f"/registry/{match.id}.json").json()
         self.assertEqual(data["players"], {"A": "Ada", "B": "Bruno"})
         self.assertEqual(len(data["moves"]), 1)
+
+    def test_notice_on_entry_pages(self):
+        for url in ("/", f"/game/{make_match().id}/"):
+            page = self.client.get(url)
+            self.assertContains(page, "Games are recorded for research")
+            self.assertContains(page, "Passwords cannot be recovered")
+            self.assertContains(page, 'name="password"')
+
+    def test_old_italian_urls_redirect(self):
+        match = make_match()
+        resp = self.client.get(f"/partita/{match.id}/")
+        self.assertRedirects(resp, f"/game/{match.id}/", status_code=301,
+                             fetch_redirect_response=False)
+        self.assertRedirects(self.client.get("/registro/"), "/registry/", status_code=301,
+                             fetch_redirect_response=False)
+
+
+@override_settings(PASSWORD_HASHERS=["django.contrib.auth.hashers.MD5PasswordHasher"])
+class NicknameTests(TestCase):
+    def setUp(self):
+        MATCHES.clear()
+
+    def test_anonymous_nicknames_are_shared(self):
+        records.set_player_name("p1", "Ada")
+        records.set_player_name("p2", "Ada")
+        self.assertFalse(Nickname.objects.exists())
+        self.assertIsNone(Player.objects.get(pid="p2").account)
+
+    def test_register_and_protect(self):
+        player = records.set_player_name("p1", "Ada", "segreto")
+        self.assertEqual(player.account.name, "Ada")
+        self.assertNotIn("segreto", player.account.password)          # solo l'hash
+        # stesso browser: niente password
+        self.assertEqual(records.set_player_name("p1", "Ada").account, player.account)
+        # altro browser, anche con maiuscole diverse
+        for pw, msg in (("", "is registered"), ("sbagliata", "wrong password")):
+            with self.assertRaisesRegex(ValueError, msg):
+                records.set_player_name("p2", "ada", pw)
+        other = records.set_player_name("p2", "ada", "segreto")
+        self.assertEqual((other.name, other.account), ("Ada", player.account))
+        with self.assertRaisesRegex(ValueError, "at least"):
+            records.set_player_name("p3", "Bruno", "abc")
+        # cambiare nickname scollega il browser dal nickname registrato
+        self.assertIsNone(records.set_player_name("p1", "Carla").account)
+        with self.assertRaisesRegex(ValueError, "is registered"):
+            records.set_player_name("p1", "Ada")
+
+    def test_registered_nickname_in_game_record(self):
+        self.client.get("/")
+        resp = self.client.post("/new/", {"mode": "computer", "level": "easy", "color": "A",
+                                          "name": "Ada", "password": "segreto"})
+        match_id = resp.url.rstrip("/").split("/")[-1]
+        game = Game.objects.get(pk=match_id)
+        self.assertEqual((game.name_a, game.account_a.name, game.account_b), ("Ada", "Ada", None))
+        self.assertContains(self.client.get("/"), "signed in as <strong>Ada</strong>")
+        # un altro browser non entra con quel nickname
+        self.client.cookies.clear()
+        resp = self.client.post(f"/game/{match_id}/", {"name": "Ada"})
+        self.assertContains(resp, "This nickname is registered", status_code=400)
+
+
+class PieceTests(TestCase):
+    def match(self, board, rules=RULES):
+        match = records.Match(rules)
+        match.reset(from_board(rules, board, "A", moves_left=1))
+        return match
+
+    def test_initial_names_are_mirrored(self):
+        match = records.Match(RULES)
+        for name, (q, r) in match.pieces.items():
+            if name[0] == "A":
+                self.assertEqual(match.pieces["B" + name[1:]], [-q, -r])
+        self.assertEqual(sorted(match.pieces), [f"{p}{i}" for p in "AB" for i in range(1, 6)])
+
+    def test_push_moves_both_names(self):
+        match = self.match({(0, 0): "A", (1, 0): "B", (-3, -1): "A", (3, 1): "B"})
+        names = dict(match.piece_at)
+        match.apply_move(Move(0, 0, E, True))
+        rec = match.log[0][2]
+        self.assertEqual((rec["piece"], rec["pushed"], rec["to"], rec["pushed_to"]),
+                         (names[(0, 0)], names[(1, 0)], [1, 0], [2, 0]))
+        self.assertEqual((match.piece_at[(1, 0)], match.piece_at[(2, 0)]),
+                         (names[(0, 0)], names[(1, 0)]))
+        self.assertNotIn((0, 0), match.piece_at)
+
+    def test_push_off_removes_the_name(self):
+        rules = Ruleset(ko=True, no_pushback=True, moves_per_turn=2, push_off=True, K=1)
+        match = self.match({(2, 0): "A", (3, 0): "B", (4, 0): "B", (-3, -1): "A"}, rules)
+        pushed = match.piece_at[(4, 0)]
+        match.apply_move(Move(3, 0, E, True)) if False else None
+        # A spinge B da (3, 0) a (4, 0)? dietro c'è un'altra pedina: si usa una spinta sul bordo
+        match = self.match({(3, 0): "A", (4, 0): "B", (0, 3): "B", (-3, -1): "A"}, rules)
+        pushed = match.piece_at[(4, 0)]
+        match.apply_move(Move(3, 0, E, True))
+        rec = match.log[0][2]
+        self.assertEqual((rec["pushed"], rec["pushed_to"]), (pushed, "off"))
+        self.assertNotIn(pushed, match.piece_at.values())

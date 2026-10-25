@@ -2,7 +2,8 @@
 Ogni cambiamento della partita viene anche salvato nel registro (records.py).
 
 Contro il computer il server non calcola niente: lo stato del giocatore umano contiene
-la richiesta "bot" e il suo browser risponde con bot_move (Match.play_bot)."""
+la richiesta "bot" e il suo browser risponde con bot_move (Match.play_bot), con le
+statistiche della ricerca in "info"."""
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.layers import get_channel_layer
@@ -20,7 +21,7 @@ save_rating = database_sync_to_async(records.save_rating)
 
 
 def group_name(match):
-    return f"partita_{match.id}"
+    return f"game_{match.id}"
 
 
 async def broadcast(match):
@@ -39,7 +40,8 @@ class MatchConsumer(AsyncJsonWebsocketConsumer):
         # siede solo chi ha già dato il proprio nome (pagina della partita)
         person = await get_player(self.pid)
         self.player, seated = self.match.join(
-            self.pid, person and person.name, person and person.pk)
+            self.pid, person and person.name, person and person.pk,
+            person and person.account_id)
         if seated:
             await save_match(self.match)
         self.group = group_name(self.match)
@@ -60,21 +62,21 @@ class MatchConsumer(AsyncJsonWebsocketConsumer):
     async def receive_json(self, content, **kwargs):
         match, kind = self.match, content.get("type") if isinstance(content, dict) else None
         if match.thinking and kind in ("move", "undo"):
-            await self.send_error("Il computer sta pensando.")
+            await self.send_error("The computer is thinking.")
             return
         try:
             if kind == "move":
                 try:
                     q, r, d = (int(content[k]) for k in ("q", "r", "d"))
                 except (KeyError, TypeError, ValueError):
-                    raise MoveError("Mossa malformata.")
+                    raise MoveError("Malformed move.")
                 match.play(self.player, q, r, d)
             elif kind == "bot_move":
                 try:
                     ply, q, r, d = (int(content[k]) for k in ("ply", "q", "r", "d"))
                 except (KeyError, TypeError, ValueError):
-                    raise MoveError("Mossa malformata.")
-                if not match.play_bot(self.player, ply, q, r, d):
+                    raise MoveError("Malformed move.")
+                if not match.play_bot(self.player, ply, q, r, d, content.get("info")):
                     return  # in ritardo: la partita è già andata avanti
             elif kind == "undo":
                 match.undo(self.player)
@@ -84,7 +86,7 @@ class MatchConsumer(AsyncJsonWebsocketConsumer):
                 await save_rating(match, self.player, content.get("stars"),
                                   content.get("comment", ""))
             else:
-                raise MoveError("Messaggio sconosciuto.")
+                raise MoveError("Unknown message.")
         except MoveError as e:
             await self.send_error(str(e))
             return

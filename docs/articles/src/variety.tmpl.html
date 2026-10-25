@@ -1,0 +1,173 @@
+<title>Does Depth Bring Variety?</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&display=swap">
+<style>
+{{STYLE}}
+</style>
+{{DEFS}}
+<article>
+<header>
+  <div class="kicker"><span class="dot a"></span><span class="dot b"></span>How to tell if a game is fun, with simulations · Part 2</div>
+  <h1>Does a deep game have to be a varied one?</h1>
+  <p class="dek">Strong robots keep beating weaker ones at Spinta, so the game is deep. We had the strongest of them play hundreds of games against each other, to see whether depth also means that no two games feel alike.</p>
+</header>
+
+<p><a href="https://claude.ai/artifact/GVAUBRCEUCGpa84nNeSt4E">Part 1</a> measured the <em>depth</em> of Spinta, a new two-player push game on a hexagonal board. A search bot that thinks twice as long beats its former self by a steady 100 to 150 Elo, doubling after doubling, which means the game supports a long chain of skill levels. That is one precondition for a game worth playing.</p>
+
+<p>Here is another: <em>variety</em>. A game in which every match follows the same script gets dull, however much calculation it rewards. Players want to open differently, try different plans and land in positions they have never seen. This article asks whether Spinta has that, and whether variety comes for free with depth.</p>
+
+<div class="note">
+  <div class="note-title">The rules, briefly</div>
+  <p>A hexagonal board of 61 cells. Each player has five pieces on their own edge, the home row, and wins by getting any piece onto the opponent’s home row. A turn is two moves with two different pieces (the first player’s very first turn is a single move). A piece steps to a neighbouring cell; if the cell is occupied, that piece is pushed one cell further, provided the cell behind is free and on the board. Two rules stop endless back-and-forth: you may not end your turn by restoring the position from before the opponent’s last turn, and a piece that has just been pushed may not push its pusher straight back.</p>
+</div>
+
+<h2>Should depth imply variety?</h2>
+
+<p>There is a good argument that it should.</p>
+
+<p><strong>The argument for.</strong> Suppose all strong games of some deep game looked alike: same opening, same plan, same kind of finish. Then a player could learn that one script and replay it. Memory would replace thinking, and the chain of ever-better players would stop where the script is fully learned. Turned around: if better players keep beating good ones, the good ones must keep meeting positions they have not mastered, so the game must keep producing new positions. There is a second, statistical reason. In a deep game the best few moves are usually close in value, closer than a player’s judgement can resolve. Two strong players, or the same player on two different days, will then choose differently, and the games will branch apart.</p>
+
+<p><strong>The argument against.</strong> Three objections.</p>
+
+<ul>
+  <li><strong>Perfect play narrows.</strong> In a finite game without chance, every position has a definite value under perfect play (Zermelo’s theorem, 1913), and the moves that keep that value are usually few. As players improve, their games are pulled toward those few lines. In chess, top-level openings are far more concentrated than club openings, and nobody thinks chess got shallower. Depth is the <em>length</em> of the skill ladder; variety is the <em>breadth</em> of play on each rung, and breadth can shrink as you climb.</li>
+  <li><strong>Depth can be narrow.</strong> A game can demand ever finer calculation within a single plan. Picture a race in which both players always do the same thing, and only timing and exact counting decide the winner. It can have a long skill chain and still feel monotonous.</li>
+  <li><strong>Variety is cheap.</strong> Random play is as varied as it gets and has no depth at all. Variety proves nothing on its own, so every measurement needs a random baseline.</li>
+</ul>
+
+<p>So the argument does not settle the question, but it tells us what to measure: variety at several levels of skill, compared with random play, at three scales. Do players open the same way? Do they follow the same plans? Do games end the same way?</p>
+
+<h2>The experiment</h2>
+
+<p>We collected five sets of complete games, each a bot playing a copy of itself under the current rules. Three use the Monte Carlo tree search bot from Part 1 at three strengths, three doublings apart: 250, 2,000 and 16,000 simulations per move. On the doubling curve each step is worth roughly 350 Elo, which means the stronger level wins nearly nine games in ten against the weaker. The other two are references: Greedy, a one-move-deep bot driven by a hand-written formula, and pure random play.</p>
+
+{{CORPUS_TABLE}}
+
+<p>The strongest bot needed about a minute per game on one processor core. Three hundred and twenty games is not a huge sample, so all percentages below come with uncertainty; where it matters we quote 95% intervals.</p>
+
+<p>One number in the table is not about variety but deserves a flag: the first player’s share of wins falls as the bots get stronger, from 53% to 48% to 42%. Between strong players, moving second appears to be an advantage, perhaps because the first player’s opening turn is only a single move. With 320 games the interval is 37–48%, so this is probably real, and it is something to watch with human players.</p>
+
+<h2>Openings: is there a best first move?</h2>
+
+<p>The board is symmetric under left-right reflection, so a move and its mirror image are really the same opening. Up to this symmetry, the first player has five possible first moves, all of which step one home-row piece forward:</p>
+
+{{FIRST_MOVES}}
+
+<p>Even the strongest bot spreads its choice over all five. Two pieces of evidence say this is not just indecision.</p>
+
+<p>First, the outcome barely depends on the choice. The win rates in the table differ by a few points, well within their uncertainty.</p>
+
+<p>Second, a dedicated deep search. For the starting position and for each of the five replies, we ran eight independent searches of 400,000 simulations each, twenty-five times the strongest bot’s budget. All five first moves came out with estimated values between 0.499 and 0.502 (a value is the expected score for the first player). The spread between independent runs was about 0.001. As far as this search can tell, the five openings are equally good, and the same holds for the second player’s replies: all between 0.495 and 0.505. The search also distributes its visits differently from run to run, with standard deviations around five percentage points, which is what you expect when there is nothing to choose between.</p>
+
+<h3>How many different openings are there?</h3>
+
+<p>Counting distinct openings depends on how many games you have. A better measure asks: <em>if I pick two games at random, how likely is it that their first k moves are identical?</em> Call this the coincidence probability <span class="math">C</span><sub>k</sub>. Its reciprocal, <span class="math">1/C</span><sub>k</sub>, is the <em>effective number</em> of openings of length k. If there were exactly 50 equally likely openings, two random games would coincide with probability 1/50, and the effective number would be 50. Unequal frequencies pull the number down: a few popular lines count for more than many rare ones.</p>
+
+<figure>
+{{OPENINGS_CHART}}
+<figcaption>Effective number of distinct openings (1 / probability that two random games share their first k half-moves, after merging mirror images), on a logarithmic scale. Greedy, with its fixed formula, collapses after the second move. The search bots stay close to random play, except that the strongest one begins to narrow from the third half-move on.</figcaption>
+</figure>
+
+<p>The first two half-moves are spread evenly at every level: about 5 first moves and about 50 two-move sequences, as many as random play. From the third half-move on, the strongest bot starts to concentrate. It has about 180 effective three-move openings against about 480 for the 2,000-simulation bot and 540 for random play, and about 1,000 four-move openings against more than 5,000. This is the narrowing that Zermelo’s theorem predicts, and it is real. It is also mild: a thousand effective openings after four half-moves is a lot, and after seven half-moves practically every game is unique.</p>
+
+<p>A last clue comes from how sure the bots are of their own moves. We record the share of the search’s visits that went to the move it played. At the first move, every level puts about 21–24% of its visits on its choice, close to an even split across five options. In the middle game, between half-moves 15 and 30, the picture changes with strength. The 250-simulation bot puts more than half its visits on one move only 0.2% of the time; the 2,000 bot 12% of the time; the 16,000 bot 47% of the time. Stronger bots find forcing moves in the middle game, while the opening stays open at every level.</p>
+
+<h2>Plans: what the bots are trying to do</h2>
+
+<p>Openings are only the first few moves. Plans are harder to pin down, because no list of named plans exists for a game invented last month. We let the data propose them.</p>
+
+<h3>Turning a game into numbers</h3>
+
+<p>For every game and each of the two players we computed fifteen descriptive numbers, chosen to capture recognisable behaviour:</p>
+
+<ul>
+  <li><strong>Involvement:</strong> how many of the five pieces ever moved, and what share of moves the busiest piece made.</li>
+  <li><strong>Shape:</strong> the average share of pieces left on the home row, how far forward the pieces stand on average, how far the leading piece gets, and the distance between the leading and the trailing piece.</li>
+  <li><strong>Pushing:</strong> the share of moves that push an opponent, that push an opponent backward, or that push one of your own pieces (a relay).</li>
+  <li><strong>Movement:</strong> the share of backward moves and of sideways moves.</li>
+  <li><strong>Geometry:</strong> how far the pieces are from the centre line, and whether the advanced pieces lean to one side.</li>
+  <li><strong>Contact and tempo:</strong> the share of pieces touching an opponent, and the turn when a piece first crosses into the opponent’s half.</li>
+</ul>
+
+<p>Each player in each game becomes a point in a fifteen-dimensional space. These numbers have different units, so each is <em>standardised</em>: we subtract its average and divide by its standard deviation, turning it into a z-score. A z-score of +1 on “pieces left at home” means one standard deviation more than typical.</p>
+
+<h3>Looking for clumps</h3>
+
+<p>If there are distinct styles, the points should form clumps. The standard tool is <em>k-means</em>. Choose a number of groups k, place k centres, assign each point to its nearest centre, move each centre to the average of its points, and repeat until nothing changes. Each step reduces the total squared distance from points to their centres, so the procedure always settles; we restart it from several random starting points and keep the best result.</p>
+
+<p>k-means always returns k groups, even if the data has no clumps at all. To check whether the groups are real we use the <em>silhouette</em>. For each point, let a be its average distance to the other members of its own group and b its average distance to the members of the nearest other group. Its silhouette is <span class="math">(b − a) / max(a, b)</span>: close to 1 when the point sits snugly in its group, near 0 when it lies on a border, negative when it is probably in the wrong group. Averaged over all points, values above 0.5 mean clearly separated groups, and values around 0.2 mean a continuum with soft tendencies.</p>
+
+<h3>Three styles at the top level</h3>
+
+<p>Among the 640 player-games of the strongest bot, the best silhouette, 0.22, comes with three groups. That is a weak structure: the styles are tendencies that shade into each other, not separate species. Still, the three tendencies are easy to recognise and to name.</p>
+
+<figure class="wide">
+<div class="scrollfig">{{PROFILES_CHART}}</div>
+<figcaption>The centre of each group, in standard deviations from the average player of the strongest bot. Bars to the right mean more than average.</figcaption>
+</figure>
+
+<ul>
+  <li><strong>Spear and wall</strong> (30% of player-games, wins 74%). One piece does most of the work while the others stay on the home row. Few pushes, few retreats, little contact. Games where this style shows up are short, 37 half-moves on average.</li>
+  <li><strong>Scrum</strong> (58%, wins 46%). Every piece gets involved, pieces push and get pushed, stand in contact and press forward. These games are long, 67 half-moves on average.</li>
+  <li><strong>Under siege</strong> (12%, wins 7%). Pieces stay compact and far back, and the first crossing into enemy territory comes late. Nobody chooses this; it is what a player’s game looks like when the opponent has taken control.</li>
+</ul>
+
+<p>When the two main styles meet, the result is lopsided. Spear and wall against scrum won 42 of 47 games, about 89%. Scrum against scrum, or spear against spear, comes out close to even.</p>
+
+{{MATCHUPS}}
+
+<h3>Cause or effect?</h3>
+
+<p>Here we must be careful. The numbers describe the whole game, and the whole game includes its ending. A player who broke through early will of course show “one piece did most of the work” and a short game, whether or not that was the plan from the start. The style may be an effect of winning rather than its cause.</p>
+
+<p>To separate the two, we compared winner and loser within the same game, but only over the first 16 half-moves, before the outcome is usually clear. If spear and wall were a plan chosen at the start, it should already be visible there. It barely is. The largest early difference is that the eventual winner had moved fewer different pieces, about half a standard deviation fewer on average, and fewer in about 59% of games. Every other early difference is smaller. Over the whole game the differences are large: the winner made the larger share of its moves with one piece in 79% of games, and retreated less in 80%.</p>
+
+<p>So the plans are not decided at the start, and no early recipe guarantees a win. What does seem consistent is the <em>theme</em> of a successful game: concentrate the attack in one piece and keep enough of the home row intact to stop the opponent from doing the same. Games either resolve quickly when one side manages this, or turn into long scrums when neither does.</p>
+
+<h2>Endings: how games are won</h2>
+
+<p>The most uniform part of the game turned out to be the finish. Most games end with a <em>double threat</em>. A piece reaches the row just in front of the opponent’s home row with both goal cells ahead of it empty. Pieces on the home row cannot be pushed out (the board edge is behind them), so the only defence is to fill both cells or to push the attacker away. With two moves per turn that sounds possible, but the defender rarely has pieces in the right places.</p>
+
+<figure>
+{{FORK_BOARD}}
+<figcaption>A double threat from a game between two 16,000-simulation bots. Amber (B, moving up) has a piece one step from indigo’s home row, with both cells in front of it (dashed rings) empty. Indigo has two moves, but only one of its pieces can reach a threatened cell, and none is close enough to push the attacker away. Amber won on the next turn, after 22 half-moves. Note the shape: one amber attacker, one in support, and three still at home.</figcaption>
+</figure>
+
+{{ENDINGS_TABLE}}
+
+<p>The double threat dominates at every level, but its share falls as the bots get stronger, from 79% at 2,000 simulations to 67% at 16,000. Other finishes become more common. At the top level, 14% of wins end with a relay, a piece pushing a friendly piece onto the goal, against 4–5% at the lower levels. In 21% of wins the winner had no immediate win available at the start of the final turn and created it with the first of its two moves, against 6–7% below. Stronger bots find more ways to finish.</p>
+
+<h2>Does variety shrink as the bots get stronger?</h2>
+
+<p>Now we can put the pieces together, with one more measure for plans. Take the fifteen standardised numbers for every player-game at a given level, and compute their average variance, a single number for how spread out the behaviour is. On this scale the three search levels together average 1; random play scores 0.97.</p>
+
+<figure>
+{{DISPERSION_CHART}}
+<figcaption>Spread of playing behaviour (average variance of the fifteen standardised style numbers) at each level, for all players and for winners only.</figcaption>
+</figure>
+
+<p>Behaviour does not become more uniform as the bots improve. It becomes more varied: 0.74 at 250 simulations, 0.87 at 2,000, 0.90 at 16,000, approaching random play. Among winners alone the rise is steeper, from 0.66 to 0.86. Stronger bots win in more different ways.</p>
+
+<p>Taken together:</p>
+
+<ul>
+  <li><strong>Openings:</strong> no best first move at any level. The strongest bot narrows its early sequences somewhat (about three times fewer effective three- and four-move openings), but still has a thousand of them after four half-moves.</li>
+  <li><strong>Plans:</strong> one successful theme, spear and wall, with weak and overlapping styles. Behaviour grows more varied with strength.</li>
+  <li><strong>Endings:</strong> dominated by the double threat, but less so as strength grows, with relays and two-move combinations becoming common.</li>
+</ul>
+
+<h2>Verdict</h2>
+
+<p>The argument from theory was inconclusive, so we measured. For Spinta, depth came with variety, and with more of it as the players improved, at least over the range we could test. The narrowing that perfect play must eventually bring is visible in the first few moves of the strongest bot, but it is small. The middle game and the endings widened instead. The one thing that looks monotonous is the theme of a won game: concentrate, break through with one piece, keep the wall. Even there, when and where the breakthrough comes varies a lot.</p>
+
+<p>For the question running through this series, whether a game is fun, these results are encouraging without being conclusive. Bots do not get bored, and they have no taste. A human might find that “spear and wall” wins too often to be interesting, or might enjoy precisely the tension between holding the wall and launching the spear. The next step is human players, and this analysis tells us what to watch for: whether people discover the same theme, how quickly, and whether the second-player edge shows up in their games too.</p>
+
+<div class="note">
+  <div class="note-title">Limits of this analysis</div>
+  <p>Monte Carlo search is random, so some of the variety between games is search noise rather than genuine choice. The deep search and the coincidence measure address this for the openings, but not for the middle game. The fifteen style numbers were chosen by us; different numbers might reveal styles these miss. The clusters are weak, so their boundaries and percentages should be read loosely. And the bots are only bots: they explore the game through random playouts, which may be blind to ideas that humans would find natural.</p>
+</div>
+
+<footer>Data: 320 games at 16,000 simulations per move, 400 games each at 2,000 and 250 simulations, 400 Greedy and 400 random games, all with the current rules (radius 4, five pieces each, two moves per turn, ko and no-pushback). Opening values from eight independent searches of 400,000 simulations per position. All analysis in plain Python.</footer>
+</article>

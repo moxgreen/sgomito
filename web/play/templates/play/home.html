@@ -2,25 +2,20 @@
 {% block content %}
 <form method="post" action="{% url 'create' %}" class="home">
   {% csrf_token %}
-  <p class="intro">Porta una tua pedina sulla fila di casa avversaria. Ogni turno muovi
-    due pedine diverse (chi apre ne muove una sola); puoi spingere una pedina se dietro
-    c'è una casella libera. Una pedina appena spinta non può rispingere indietro chi l'ha
-    spinta, e non si può disfare subito il turno dell'avversario (ko).</p>
+  <p class="intro">Get one of your pieces onto your opponent's home row. Each turn you move
+    two different pieces (whoever opens moves only one); you can push a piece if the cell
+    behind it is free. A piece that has just been pushed can't push back the piece that
+    pushed it, and you can't immediately undo your opponent's turn (ko).</p>
   <details class="rules-box rules-home">
-    <summary>Come si gioca, con esempi</summary>
+    <summary>How to play, with examples</summary>
     {% include "play/rules.html" %}
   </details>
-  <p class="intro">È un playtest: le partite vengono registrate e alla fine ti chiediamo
-    quanto ti sei divertito.</p>
-  {% if error %}<p class="error">Impossibile creare la partita: {{ error }}.</p>{% endif %}
+  {% if error %}<p class="error">Couldn't create the game: {{ error }}.</p>{% endif %}
 
-  <label class="name-field">Il tuo nome
-    <input type="text" name="name" value="{{ v.name }}" maxlength="30" required
-      autocomplete="nickname" placeholder="come ti vedranno gli altri">
-  </label>
+  {% include "play/nickname.html" with name=v.name %}
 
   <fieldset>
-    <legend>Il tuo colore</legend>
+    <legend>Your color</legend>
     {% for value, label in colors %}
     <label class="choice"><input type="radio" name="color" value="{{ value }}"
       {% if v.color == value %}checked{% endif %}>
@@ -31,37 +26,37 @@
 
   <div class="cards">
     <section class="card">
-      <h2>Gioca con un amico</h2>
-      <p>Crea una stanza e manda il link a chi vuoi sfidare.</p>
-      <button type="submit" name="mode" value="amico">Crea la partita</button>
+      <h2>Play with a friend</h2>
+      <p>Create a room and send the link to whoever you want to challenge.</p>
+      <button type="submit" name="mode" value="friend">Create the game</button>
     </section>
     <section class="card">
-      <h2>Gioca contro il computer</h2>
-      <label>Difficoltà
+      <h2>Play against the computer</h2>
+      <label>Difficulty
         <select name="level">
           {% for key, name, desc in levels %}
           <option value="{{ key }}" {% if v.level == key %}selected{% endif %}>{{ name }} ({{ desc }})</option>
           {% endfor %}
         </select>
       </label>
-      <button type="submit" name="mode" value="computer">Inizia</button>
+      <button type="submit" name="mode" value="computer">Start</button>
     </section>
   </div>
 
   <details class="advanced">
-    <summary>Regole avanzate (varianti)</summary>
+    <summary>Advanced rules (variants)</summary>
     <div class="grid">
-      <label>Raggio del campo R
+      <label>Board radius R
         <select name="R">{% for x in "345" %}<option {% if v.R|stringformat:"s" == x %}selected{% endif %}>{{ x }}</option>{% endfor %}</select>
       </label>
-      <label>Pedine per giocatore N <input type="number" name="N" min="1" max="13" value="{{ v.N }}"></label>
-      <label>Pedine da portare al traguardo K <input type="number" name="K" min="1" max="13" value="{{ v.K }}"></label>
+      <label>Pieces per player N <input type="number" name="N" min="1" max="13" value="{{ v.N }}"></label>
+      <label>Pieces to bring to the goal K <input type="number" name="K" min="1" max="13" value="{{ v.K }}"></label>
       <label class="check"><input type="checkbox" name="goal_wide" {% if v.goal_wide %}checked{% endif %}>
-        Traguardo largo (anche le 2 celle laterali accanto alla casa nemica)</label>
+        Wide goal (also the 2 side cells next to the enemy home row)</label>
       <label class="check"><input type="checkbox" name="push_off" {% if v.push_off %}checked{% endif %}>
-        Spinta fuori dal campo (elimina la pedina avversaria)</label>
+        Push off the board (removes the opponent's piece)</label>
     </div>
-    <p class="note">Sempre attivi: niente rispinta, ko e due mosse per turno.</p>
+    <p class="note">Always on: no push-back, ko and two moves per turn.</p>
   </details>
 </form>
 {% endblock %}

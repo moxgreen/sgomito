@@ -1,30 +1,30 @@
 {% extends "play/base.html" %}
 {% load static %}
-{% block title %}Partita {{ match.id }} — Spinta{% endblock %}
+{% block title %}Game {{ match.id }} — Spinta{% endblock %}
 {% block content %}
 <div id="game" class="game" data-match="{{ match.id }}">
   <div class="board-wrap">
-    <div id="status" class="turn-bar" aria-live="polite">Connessione…</div>
-    <svg id="board" role="img" aria-label="Campo di gioco"></svg>
+    <div id="status" class="turn-bar" aria-live="polite">Connecting…</div>
+    <svg id="board" role="img" aria-label="Game board"></svg>
   </div>
   <aside class="panel">
     <div id="players" class="players"></div>
     <div id="result" class="result" hidden></div>
     <div class="buttons">
-      <button id="undo" type="button" disabled title="Annulla la prima mossa del turno">Annulla mossa</button>
-      <button id="resign" type="button" class="secondary">Abbandona</button>
+      <button id="undo" type="button" disabled title="Undo the first move of the turn">Undo move</button>
+      <button id="resign" type="button" class="secondary">Resign</button>
     </div>
     <div id="hint" class="hint" aria-live="polite"></div>
-    <button id="rate-open" type="button" class="secondary" hidden>Dai un giudizio</button>
+    <button id="rate-open" type="button" class="secondary" hidden>Rate the game</button>
     {% if not vs_computer %}
     <div id="share" class="share" hidden>
-      <p>Manda questo link all'avversario:</p>
+      <p>Send this link to your opponent:</p>
       <div class="share-row"><input id="share-url" readonly value="{{ share_url }}">
-        <button id="copy" type="button">Copia</button></div>
+        <button id="copy" type="button">Copy</button></div>
     </div>
     {% endif %}
     <details class="rules-box">
-      <summary>Come si gioca</summary>
+      <summary>How to play</summary>
       <p id="rules-summary" class="note"></p>
       {% include "play/rules.html" %}
     </details>
@@ -32,19 +32,19 @@
 </div>
 <dialog id="rating" class="rating">
   <form id="rating-form" method="dialog">
-    <h2 id="rating-title">Partita finita</h2>
-    <p>Quanto ti sei divertito?</p>
-    <div class="stars" tabindex="-1" autofocus role="radiogroup" aria-label="Divertimento da 1 a 5 stelle">
+    <h2 id="rating-title">Game over</h2>
+    <p>How much fun did you have?</p>
+    <div class="stars" tabindex="-1" autofocus role="radiogroup" aria-label="Fun, from 1 to 5 stars">
       {% for n in "12345" %}<button type="button" class="star" data-stars="{{ n }}"
-        role="radio" aria-checked="false" aria-label="{{ n }} stell{{ n|pluralize:'a,e' }}">★</button>{% endfor %}
+        role="radio" aria-checked="false" aria-label="{{ n }} star{{ n|pluralize }}">★</button>{% endfor %}
     </div>
-    <p id="stars-label" class="note">Scegli da 1 a 5 stelle.</p>
-    <label>Commento (facoltativo)
+    <p id="stars-label" class="note">Choose from 1 to 5 stars.</p>
+    <label>Comment (optional)
       <textarea id="rating-comment" rows="3" maxlength="2000"
-        placeholder="cosa ti è piaciuto, cosa no, regole poco chiare…"></textarea></label>
+        placeholder="what you liked, what you didn't, unclear rules…"></textarea></label>
     <div class="buttons">
-      <button id="rating-send" type="submit" disabled>Invia giudizio</button>
-      <button id="rating-skip" type="button" class="secondary">Non ora</button>
+      <button id="rating-send" type="submit" disabled>Send rating</button>
+      <button id="rating-skip" type="button" class="secondary">Not now</button>
     </div>
   </form>
 </dialog>

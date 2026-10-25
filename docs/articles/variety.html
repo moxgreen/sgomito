@@ -1,0 +1,549 @@
+<title>Does Depth Bring Variety?</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&display=swap">
+<style>
+/* Long-form article on a hex board game: one reading column, figures break out slightly,
+   the two player colours (A indigo, B amber) are the only accents. */
+:root {
+  --paper: #f6f7f4;
+  --ink: #1d2128;
+  --muted: #5d6470;
+  --rule: #d9dcd5;
+  --cell: #e7e9e3;
+  --cell-line: #c9cdc4;
+  --a: #3346a3;
+  --b: #c27a12;
+  --a-soft: #dfe3f6;
+  --b-soft: #f6e6cc;
+  --note: #ecefe8;
+  --f-display: "Familjen Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "Newsreader", Georgia, "Times New Roman", serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #15181d; --ink: #e6e7e3; --muted: #9aa1ab; --rule: #2d323a;
+    --cell: #232831; --cell-line: #353b46; --a: #8f9cf0; --b: #e5a54a;
+    --a-soft: #262d52; --b-soft: #45331a; --note: #1d2128; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #15181d; --ink: #e6e7e3; --muted: #9aa1ab; --rule: #2d323a;
+  --cell: #232831; --cell-line: #353b46; --a: #8f9cf0; --b: #e5a54a;
+  --a-soft: #262d52; --b-soft: #45331a; --note: #1d2128; color-scheme: dark;
+}
+body {
+  background: var(--paper); color: var(--ink); font-family: var(--f-body);
+  font-size: 1.15rem; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 3rem 5rem;
+}
+article { max-width: 40rem; margin: 0 auto; display: flex; flex-direction: column; gap: 1.1rem; }
+article > * { margin: 0; min-width: 0; }
+header { display: flex; flex-direction: column; gap: 0.8rem; padding-bottom: 1.6rem;
+  border-bottom: 1px solid var(--rule); margin-bottom: 0.6rem; }
+.kicker { font-family: var(--f-display); text-transform: uppercase; letter-spacing: 0.12em;
+  font-size: 0.78rem; color: var(--muted); display: flex; gap: 0.6rem; align-items: center; }
+.kicker .dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; display: inline-block; }
+.kicker .dot.a { background: var(--a); } .kicker .dot.b { background: var(--b); }
+h1 { font-family: var(--f-display); font-weight: 700; font-size: clamp(2rem, 6vw, 3rem);
+  line-height: 1.05; letter-spacing: -0.02em; text-wrap: balance; margin: 0; }
+.dek { font-size: 1.3rem; line-height: 1.45; color: var(--muted); margin: 0; text-wrap: pretty; }
+h2 { font-family: var(--f-display); font-weight: 700; font-size: 1.55rem; line-height: 1.2;
+  letter-spacing: -0.01em; text-wrap: balance; margin-top: 1.6rem; }
+h3 { font-family: var(--f-display); font-weight: 600; font-size: 1.15rem; margin-top: 0.6rem; }
+p, li { text-wrap: pretty; }
+ul, ol { padding-left: 1.3rem; display: flex; flex-direction: column; gap: 0.35rem; }
+a { color: var(--a); }
+strong { font-weight: 600; }
+code, .mono { font-family: var(--f-mono); font-size: 0.86em; }
+.math { font-family: var(--f-body); font-style: italic; white-space: nowrap; }
+.eq { font-family: var(--f-body); font-size: 1.2rem; text-align: center; padding: 0.6rem 0;
+  overflow-x: auto; }
+.eq i { font-style: italic; }
+.note { background: var(--note); border-radius: 6px; padding: 1rem 1.2rem; font-size: 1.02rem; }
+.note > * + * { margin-top: 0.6rem; }
+.note-title { font-family: var(--f-display); font-weight: 600; font-size: 0.82rem;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+figure { margin: 0.6rem 0; display: flex; flex-direction: column; gap: 0.6rem; }
+figure.wide { margin-left: -1rem; margin-right: -1rem; }
+figcaption { font-size: 0.93rem; line-height: 1.45; color: var(--muted); }
+.figrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 1rem;
+  align-items: start; }
+.figrow > div { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
+.figrow .sub { font-family: var(--f-display); font-size: 0.85rem; color: var(--muted);
+  text-align: center; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.95rem;
+  font-variant-numeric: tabular-nums; }
+th, td { padding: 0.4rem 0.6rem; text-align: right; border-bottom: 1px solid var(--rule);
+  white-space: nowrap; }
+th { font-family: var(--f-display); font-weight: 600; font-size: 0.8rem; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--muted); }
+th:first-child, td:first-child { text-align: left; }
+td.l { text-align: left; white-space: normal; }
+tr.sep td { font-family: var(--f-display); font-size: 0.8rem; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--muted); padding-top: 1rem; }
+.pill { display: inline-block; font-family: var(--f-display); font-size: 0.78rem;
+  padding: 0.05rem 0.5rem; border-radius: 999px; background: var(--note); color: var(--ink); }
+footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+  font-size: 0.95rem; color: var(--muted); }
+
+/* SVG figures */
+svg { display: block; width: 100%; height: auto; overflow: visible; }
+svg.board { max-width: 22rem; margin: 0 auto; }
+.figrow svg.board { max-width: 15rem; }
+.cell { fill: var(--cell); stroke: var(--cell-line); stroke-width: 1; }
+.cell.home-a { fill: var(--a-soft); }
+.cell.home-b { fill: var(--b-soft); }
+.piece { stroke: var(--paper); stroke-width: 1.5; }
+.piece.pa { fill: var(--a); }
+.piece.pb { fill: var(--b); }
+.mark { fill: none; stroke: var(--ink); stroke-width: 2; stroke-dasharray: 3 3; }
+.arrow { stroke-width: 2.5; fill: none; }
+.arr-a { stroke: var(--a); } .arr-b { stroke: var(--b); } .arr-n { stroke: var(--ink); }
+.head-a { fill: var(--a); } .head-b { fill: var(--b); } .head-n { fill: var(--ink); }
+.chart .grid { stroke: var(--rule); stroke-width: 1; }
+.chart .ref { stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 4 3; }
+.chart .tick, .chart .axis { fill: var(--muted); font-family: var(--f-display); font-size: 12px; }
+.chart .lab { fill: var(--ink); font-family: var(--f-display); font-size: 13px; }
+.chart .val { fill: var(--muted); font-family: var(--f-mono); font-size: 12px; }
+.chart .bar { fill: var(--a); }
+.chart .bar.b { fill: var(--b); }
+.chart .bar.n { fill: var(--muted); }
+.chart .err { stroke: var(--ink); stroke-width: 1.5; }
+.chart .line { fill: none; stroke-width: 2.2; }
+.chart .line.a { stroke: var(--a); } .chart .dot.a { fill: var(--a); }
+.chart .line.b { stroke: var(--b); } .chart .dot.b { fill: var(--b); }
+.chart .line.n { stroke: var(--muted); } .chart .dot.n { fill: var(--muted); }
+.chart .serieslab { font-family: var(--f-display); font-size: 12px; }
+.chart .serieslab.a { fill: var(--a); } .chart .serieslab.b { fill: var(--b); }
+.chart .serieslab.n { fill: var(--muted); }
+.diagram text { font-family: var(--f-display); font-size: 12px; fill: var(--ink); }
+.diagram .node { fill: var(--cell); stroke: var(--cell-line); stroke-width: 1.2; }
+.diagram .node.hot { fill: var(--a-soft); stroke: var(--a); }
+.diagram .node.new { fill: var(--b-soft); stroke: var(--b); }
+.diagram .edge { stroke: var(--cell-line); stroke-width: 1.5; fill: none; }
+.diagram .edge.hot { stroke: var(--a); stroke-width: 2.2; }
+.diagram .walk { stroke: var(--b); stroke-width: 1.8; fill: none; stroke-dasharray: 4 3; }
+.diagram .up { stroke: var(--ink); stroke-width: 1.4; fill: none; }
+.diagram .cap { fill: var(--muted); font-size: 11px; }
+
+@media (max-width: 30rem) {
+  body { font-size: 1.05rem; padding-block: 2rem 3rem; }
+  figure.wide { margin-left: 0; margin-right: 0; }
+}
+.tablenote { font-size: 0.9rem; color: var(--muted); line-height: 1.45; }
+.scrollfig { overflow-x: auto; }
+.scrollfig svg { min-width: 34rem; }
+
+</style>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<marker id="head-a" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path class="head-a" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="head-b" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path class="head-b" d="M0,0 L10,5 L0,10 z"/></marker>
+<marker id="head-n" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path class="head-n" d="M0,0 L10,5 L0,10 z"/></marker>
+</defs></svg>
+<article>
+<header>
+  <div class="kicker"><span class="dot a"></span><span class="dot b"></span>How to tell if a game is fun, with simulations · Part 2</div>
+  <h1>Does a deep game have to be a varied one?</h1>
+  <p class="dek">Strong robots keep beating weaker ones at Spinta, so the game is deep. We had the strongest of them play hundreds of games against each other, to see whether depth also means that no two games feel alike.</p>
+</header>
+
+<p><a href="https://claude.ai/artifact/GVAUBRCEUCGpa84nNeSt4E">Part 1</a> measured the <em>depth</em> of Spinta, a new two-player push game on a hexagonal board. A search bot that thinks twice as long beats its former self by a steady 100 to 150 Elo, doubling after doubling, which means the game supports a long chain of skill levels. That is one precondition for a game worth playing.</p>
+
+<p>Here is another: <em>variety</em>. A game in which every match follows the same script gets dull, however much calculation it rewards. Players want to open differently, try different plans and land in positions they have never seen. This article asks whether Spinta has that, and whether variety comes for free with depth.</p>
+
+<div class="note">
+  <div class="note-title">The rules, briefly</div>
+  <p>A hexagonal board of 61 cells. Each player has five pieces on their own edge, the home row, and wins by getting any piece onto the opponent’s home row. A turn is two moves with two different pieces (the first player’s very first turn is a single move). A piece steps to a neighbouring cell; if the cell is occupied, that piece is pushed one cell further, provided the cell behind is free and on the board. Two rules stop endless back-and-forth: you may not end your turn by restoring the position from before the opponent’s last turn, and a piece that has just been pushed may not push its pusher straight back.</p>
+</div>
+
+<h2>Should depth imply variety?</h2>
+
+<p>There is a good argument that it should.</p>
+
+<p><strong>The argument for.</strong> Suppose all strong games of some deep game looked alike: same opening, same plan, same kind of finish. Then a player could learn that one script and replay it. Memory would replace thinking, and the chain of ever-better players would stop where the script is fully learned. Turned around: if better players keep beating good ones, the good ones must keep meeting positions they have not mastered, so the game must keep producing new positions. There is a second, statistical reason. In a deep game the best few moves are usually close in value, closer than a player’s judgement can resolve. Two strong players, or the same player on two different days, will then choose differently, and the games will branch apart.</p>
+
+<p><strong>The argument against.</strong> Three objections.</p>
+
+<ul>
+  <li><strong>Perfect play narrows.</strong> In a finite game without chance, every position has a definite value under perfect play (Zermelo’s theorem, 1913), and the moves that keep that value are usually few. As players improve, their games are pulled toward those few lines. In chess, top-level openings are far more concentrated than club openings, and nobody thinks chess got shallower. Depth is the <em>length</em> of the skill ladder; variety is the <em>breadth</em> of play on each rung, and breadth can shrink as you climb.</li>
+  <li><strong>Depth can be narrow.</strong> A game can demand ever finer calculation within a single plan. Picture a race in which both players always do the same thing, and only timing and exact counting decide the winner. It can have a long skill chain and still feel monotonous.</li>
+  <li><strong>Variety is cheap.</strong> Random play is as varied as it gets and has no depth at all. Variety proves nothing on its own, so every measurement needs a random baseline.</li>
+</ul>
+
+<p>So the argument does not settle the question, but it tells us what to measure: variety at several levels of skill, compared with random play, at three scales. Do players open the same way? Do they follow the same plans? Do games end the same way?</p>
+
+<h2>The experiment</h2>
+
+<p>We collected five sets of complete games, each a bot playing a copy of itself under the current rules. Three use the Monte Carlo tree search bot from Part 1 at three strengths, three doublings apart: 250, 2,000 and 16,000 simulations per move. On the doubling curve each step is worth roughly 350 Elo, which means the stronger level wins nearly nine games in ten against the weaker. The other two are references: Greedy, a one-move-deep bot driven by a hand-written formula, and pure random play.</p>
+
+<div class="tablewrap"><table><thead><tr><th>Players</th><th>Games</th><th>A wins</th><th>Draws</th><th>Half-moves</th><th>Pushes</th></tr></thead><tbody>
+<tr><td>MCTS 16,000</td><td>320</td><td>42.5%</td><td>0%</td><td>55</td><td>37%</td></tr>
+<tr><td>MCTS 2,000</td><td>400</td><td>48.5%</td><td>0%</td><td>46</td><td>27%</td></tr>
+<tr><td>MCTS 250</td><td>400</td><td>53.2%</td><td>0%</td><td>53</td><td>18%</td></tr>
+<tr><td>Greedy</td><td>400</td><td>54.0%</td><td>0%</td><td>30</td><td>55%</td></tr>
+<tr><td>Random</td><td>400</td><td>26.2%</td><td>45%</td><td>167</td><td>11%</td></tr>
+</tbody></table></div>
+<p class="tablenote">“A wins” is the first player’s share of all games; “Half-moves” the average game length; “Pushes” the share of moves that push a piece.</p>
+
+<p>The strongest bot needed about a minute per game on one processor core. Three hundred and twenty games is not a huge sample, so all percentages below come with uncertainty; where it matters we quote 95% intervals.</p>
+
+<p>One number in the table is not about variety but deserves a flag: the first player’s share of wins falls as the bots get stronger, from 53% to 48% to 42%. Between strong players, moving second appears to be an advantage, perhaps because the first player’s opening turn is only a single move. With 320 games the interval is 37–48%, so this is probably real, and it is something to watch with human players.</p>
+
+<h2>Openings: is there a best first move?</h2>
+
+<p>The board is symmetric under left-right reflection, so a move and its mirror image are really the same opening. Up to this symmetry, the first player has five possible first moves, all of which step one home-row piece forward:</p>
+
+<div class="tablewrap"><table><thead><tr><th>First move</th><th>Chosen</th><th>A wins (95%)</th><th>Value</th></tr></thead><tbody>
+<tr><td class="l">Centre piece forward</td><td>26%</td><td>45% (34%–55%)</td><td>0.502</td></tr>
+<tr><td class="l">Outer piece, toward the centre</td><td>22%</td><td>36% (26%–48%)</td><td>0.501</td></tr>
+<tr><td class="l">Inner piece, toward the centre</td><td>22%</td><td>49% (38%–61%)</td><td>0.499</td></tr>
+<tr><td class="l">Inner piece, toward the edge</td><td>17%</td><td>37% (25%–50%)</td><td>0.499</td></tr>
+<tr><td class="l">Outer piece, toward the edge</td><td>14%</td><td>44% (31%–59%)</td><td>0.499</td></tr>
+</tbody></table></div>
+<p class="tablenote">“Chosen”: how often the 16,000-simulation bot played this first move. “A wins”: the first player’s results after it, with a 95% interval. “Value”: the expected score for the first player according to the deep search described below.</p>
+
+<p>Even the strongest bot spreads its choice over all five. Two pieces of evidence say this is not just indecision.</p>
+
+<p>First, the outcome barely depends on the choice. The win rates in the table differ by a few points, well within their uncertainty.</p>
+
+<p>Second, a dedicated deep search. For the starting position and for each of the five replies, we ran eight independent searches of 400,000 simulations each, twenty-five times the strongest bot’s budget. All five first moves came out with estimated values between 0.499 and 0.502 (a value is the expected score for the first player). The spread between independent runs was about 0.001. As far as this search can tell, the five openings are equally good, and the same holds for the second player’s replies: all between 0.495 and 0.505. The search also distributes its visits differently from run to run, with standard deviations around five percentage points, which is what you expect when there is nothing to choose between.</p>
+
+<h3>How many different openings are there?</h3>
+
+<p>Counting distinct openings depends on how many games you have. A better measure asks: <em>if I pick two games at random, how likely is it that their first k moves are identical?</em> Call this the coincidence probability <span class="math">C</span><sub>k</sub>. Its reciprocal, <span class="math">1/C</span><sub>k</sub>, is the <em>effective number</em> of openings of length k. If there were exactly 50 equally likely openings, two random games would coincide with probability 1/50, and the effective number would be 50. Unequal frequencies pull the number down: a few popular lines count for more than many rare ones.</p>
+
+<figure>
+<svg class="chart" viewBox="0 0 560 260" role="img" aria-label="Effective number of openings by length">
+<line class="grid" x1="52" y1="220.0" x2="450" y2="220.0"/>
+<text class="tick" x="46" y="224.0" text-anchor="end">1</text>
+<line class="grid" x1="52" y1="168.0" x2="450" y2="168.0"/>
+<text class="tick" x="46" y="172.0" text-anchor="end">10</text>
+<line class="grid" x1="52" y1="116.0" x2="450" y2="116.0"/>
+<text class="tick" x="46" y="120.0" text-anchor="end">100</text>
+<line class="grid" x1="52" y1="64.0" x2="450" y2="64.0"/>
+<text class="tick" x="46" y="68.0" text-anchor="end">1,000</text>
+<line class="grid" x1="52" y1="12.0" x2="450" y2="12.0"/>
+<text class="tick" x="46" y="16.0" text-anchor="end">10,000</text>
+<text class="tick" x="52.0" y="236" text-anchor="middle">1</text>
+<text class="tick" x="184.7" y="236" text-anchor="middle">2</text>
+<text class="tick" x="317.3" y="236" text-anchor="middle">3</text>
+<text class="tick" x="450.0" y="236" text-anchor="middle">4</text>
+<text class="axis" x="251" y="256" text-anchor="middle">opening length (half-moves)</text>
+<text class="axis" x="46" y="236" text-anchor="end"></text>
+<path class="line a" d="M52.0,184.3 L184.7,133.0 L317.3,102.9 L450.0,64.0"/>
+<circle class="dot a" cx="52.0" cy="184.3" r="3.5"/>
+<circle class="dot a" cx="184.7" cy="133.0" r="3.5"/>
+<circle class="dot a" cx="317.3" cy="102.9" r="3.5"/>
+<circle class="dot a" cx="450.0" cy="64.0" r="3.5"/>
+<text class="serieslab a" x="458.0" y="68.0">MCTS 16,000</text>
+<path class="line b" d="M52.0,183.6 L184.7,132.2 L317.3,80.4 L450.0,26.3"/>
+<circle class="dot b" cx="52.0" cy="183.6" r="3.5"/>
+<circle class="dot b" cx="184.7" cy="132.2" r="3.5"/>
+<circle class="dot b" cx="317.3" cy="80.4" r="3.5"/>
+<circle class="dot b" cx="450.0" cy="26.3" r="3.5"/>
+<text class="serieslab b" x="458.0" y="20.3">MCTS 2,000</text>
+<path class="line n" d="M52.0,183.6 L184.7,131.2 L317.3,77.9 L450.0,23.0"/>
+<circle class="dot n" cx="52.0" cy="183.6" r="3.5"/>
+<circle class="dot n" cx="184.7" cy="131.2" r="3.5"/>
+<circle class="dot n" cx="317.3" cy="77.9" r="3.5"/>
+<circle class="dot n" cx="450.0" cy="23.0" r="3.5"/>
+<text class="serieslab n" x="458.0" y="35.0">Random</text>
+<path class="line n" d="M52.0,183.6 L184.7,132.0 L317.3,128.7 L450.0,124.1"/>
+<circle class="dot n" cx="52.0" cy="183.6" r="3.5"/>
+<circle class="dot n" cx="184.7" cy="132.0" r="3.5"/>
+<circle class="dot n" cx="317.3" cy="128.7" r="3.5"/>
+<circle class="dot n" cx="450.0" cy="124.1" r="3.5"/>
+<text class="serieslab n" x="458.0" y="128.1">Greedy</text>
+</svg>
+<figcaption>Effective number of distinct openings (1 / probability that two random games share their first k half-moves, after merging mirror images), on a logarithmic scale. Greedy, with its fixed formula, collapses after the second move. The search bots stay close to random play, except that the strongest one begins to narrow from the third half-move on.</figcaption>
+</figure>
+
+<p>The first two half-moves are spread evenly at every level: about 5 first moves and about 50 two-move sequences, as many as random play. From the third half-move on, the strongest bot starts to concentrate. It has about 180 effective three-move openings against about 480 for the 2,000-simulation bot and 540 for random play, and about 1,000 four-move openings against more than 5,000. This is the narrowing that Zermelo’s theorem predicts, and it is real. It is also mild: a thousand effective openings after four half-moves is a lot, and after seven half-moves practically every game is unique.</p>
+
+<p>A last clue comes from how sure the bots are of their own moves. We record the share of the search’s visits that went to the move it played. At the first move, every level puts about 21–24% of its visits on its choice, close to an even split across five options. In the middle game, between half-moves 15 and 30, the picture changes with strength. The 250-simulation bot puts more than half its visits on one move only 0.2% of the time; the 2,000 bot 12% of the time; the 16,000 bot 47% of the time. Stronger bots find forcing moves in the middle game, while the opening stays open at every level.</p>
+
+<h2>Plans: what the bots are trying to do</h2>
+
+<p>Openings are only the first few moves. Plans are harder to pin down, because no list of named plans exists for a game invented last month. We let the data propose them.</p>
+
+<h3>Turning a game into numbers</h3>
+
+<p>For every game and each of the two players we computed fifteen descriptive numbers, chosen to capture recognisable behaviour:</p>
+
+<ul>
+  <li><strong>Involvement:</strong> how many of the five pieces ever moved, and what share of moves the busiest piece made.</li>
+  <li><strong>Shape:</strong> the average share of pieces left on the home row, how far forward the pieces stand on average, how far the leading piece gets, and the distance between the leading and the trailing piece.</li>
+  <li><strong>Pushing:</strong> the share of moves that push an opponent, that push an opponent backward, or that push one of your own pieces (a relay).</li>
+  <li><strong>Movement:</strong> the share of backward moves and of sideways moves.</li>
+  <li><strong>Geometry:</strong> how far the pieces are from the centre line, and whether the advanced pieces lean to one side.</li>
+  <li><strong>Contact and tempo:</strong> the share of pieces touching an opponent, and the turn when a piece first crosses into the opponent’s half.</li>
+</ul>
+
+<p>Each player in each game becomes a point in a fifteen-dimensional space. These numbers have different units, so each is <em>standardised</em>: we subtract its average and divide by its standard deviation, turning it into a z-score. A z-score of +1 on “pieces left at home” means one standard deviation more than typical.</p>
+
+<h3>Looking for clumps</h3>
+
+<p>If there are distinct styles, the points should form clumps. The standard tool is <em>k-means</em>. Choose a number of groups k, place k centres, assign each point to its nearest centre, move each centre to the average of its points, and repeat until nothing changes. Each step reduces the total squared distance from points to their centres, so the procedure always settles; we restart it from several random starting points and keep the best result.</p>
+
+<p>k-means always returns k groups, even if the data has no clumps at all. To check whether the groups are real we use the <em>silhouette</em>. For each point, let a be its average distance to the other members of its own group and b its average distance to the members of the nearest other group. Its silhouette is <span class="math">(b − a) / max(a, b)</span>: close to 1 when the point sits snugly in its group, near 0 when it lies on a border, negative when it is probably in the wrong group. Averaged over all points, values above 0.5 mean clearly separated groups, and values around 0.2 mean a continuum with soft tendencies.</p>
+
+<h3>Three styles at the top level</h3>
+
+<p>Among the 640 player-games of the strongest bot, the best silhouette, 0.22, comes with three groups. That is a weak structure: the styles are tendencies that shade into each other, not separate species. Still, the three tendencies are easy to recognise and to name.</p>
+
+<figure class="wide">
+<div class="scrollfig"><svg class="chart" viewBox="0 0 600 250" role="img" aria-label="Style profiles">
+<text class="lab" x="258.3" y="14" text-anchor="middle" font-weight="600">Spear and wall</text>
+<line class="ref" x1="258.3" y1="24" x2="258.3" y2="246"/>
+<rect class="bar a" x="228.0" y="32" width="30.3" height="14" rx="2"/>
+<rect class="bar a" x="258.3" y="56" width="28.9" height="14" rx="2"/>
+<rect class="bar a" x="258.3" y="80" width="21.0" height="14" rx="2"/>
+<rect class="bar a" x="256.3" y="104" width="2.0" height="14" rx="2"/>
+<rect class="bar a" x="228.1" y="128" width="30.2" height="14" rx="2"/>
+<rect class="bar a" x="239.1" y="152" width="19.3" height="14" rx="2"/>
+<rect class="bar a" x="242.8" y="176" width="15.5" height="14" rx="2"/>
+<rect class="bar a" x="230.5" y="200" width="27.8" height="14" rx="2"/>
+<rect class="bar a" x="249.8" y="224" width="8.5" height="14" rx="2"/>
+<text class="lab" x="395.0" y="14" text-anchor="middle" font-weight="600">Scrum</text>
+<line class="ref" x1="395.0" y1="24" x2="395.0" y2="246"/>
+<rect class="bar n" x="395.0" y="32" width="12.5" height="14" rx="2"/>
+<rect class="bar n" x="385.3" y="56" width="9.7" height="14" rx="2"/>
+<rect class="bar n" x="384.7" y="80" width="10.3" height="14" rx="2"/>
+<rect class="bar n" x="395.0" y="104" width="13.0" height="14" rx="2"/>
+<rect class="bar n" x="395.0" y="128" width="14.9" height="14" rx="2"/>
+<rect class="bar n" x="395.0" y="152" width="5.3" height="14" rx="2"/>
+<rect class="bar n" x="395.0" y="176" width="5.8" height="14" rx="2"/>
+<rect class="bar n" x="395.0" y="200" width="16.4" height="14" rx="2"/>
+<rect class="bar n" x="387.7" y="224" width="7.3" height="14" rx="2"/>
+<text class="lab" x="531.7" y="14" text-anchor="middle" font-weight="600">Under siege</text>
+<line class="ref" x1="531.7" y1="24" x2="531.7" y2="246"/>
+<rect class="bar b" x="531.7" y="32" width="15.0" height="14" rx="2"/>
+<rect class="bar b" x="506.3" y="56" width="25.3" height="14" rx="2"/>
+<rect class="bar b" x="529.7" y="80" width="2.0" height="14" rx="2"/>
+<rect class="bar b" x="471.7" y="104" width="59.9" height="14" rx="2"/>
+<rect class="bar b" x="531.7" y="128" width="2.9" height="14" rx="2"/>
+<rect class="bar b" x="531.7" y="152" width="22.6" height="14" rx="2"/>
+<rect class="bar b" x="531.7" y="176" width="10.3" height="14" rx="2"/>
+<rect class="bar b" x="520.6" y="200" width="11.1" height="14" rx="2"/>
+<rect class="bar b" x="531.7" y="224" width="57.9" height="14" rx="2"/>
+<text class="lab" x="180" y="43.0" text-anchor="end">pieces ever moved</text>
+<text class="lab" x="180" y="67.0" text-anchor="end">moves by busiest piece</text>
+<line class="grid" x1="0" y1="52.0" x2="600" y2="52.0"/>
+<text class="lab" x="180" y="91.0" text-anchor="end">pieces kept at home</text>
+<line class="grid" x1="0" y1="76.0" x2="600" y2="76.0"/>
+<text class="lab" x="180" y="115.0" text-anchor="end">reach of lead piece</text>
+<line class="grid" x1="0" y1="100.0" x2="600" y2="100.0"/>
+<text class="lab" x="180" y="139.0" text-anchor="end">pushes on opponents</text>
+<line class="grid" x1="0" y1="124.0" x2="600" y2="124.0"/>
+<text class="lab" x="180" y="163.0" text-anchor="end">backward moves</text>
+<line class="grid" x1="0" y1="148.0" x2="600" y2="148.0"/>
+<text class="lab" x="180" y="187.0" text-anchor="end">sideways moves</text>
+<line class="grid" x1="0" y1="172.0" x2="600" y2="172.0"/>
+<text class="lab" x="180" y="211.0" text-anchor="end">contact with opponents</text>
+<line class="grid" x1="0" y1="196.0" x2="600" y2="196.0"/>
+<text class="lab" x="180" y="235.0" text-anchor="end">turn of first crossing</text>
+<line class="grid" x1="0" y1="220.0" x2="600" y2="220.0"/>
+</svg></div>
+<figcaption>The centre of each group, in standard deviations from the average player of the strongest bot. Bars to the right mean more than average.</figcaption>
+</figure>
+
+<ul>
+  <li><strong>Spear and wall</strong> (30% of player-games, wins 74%). One piece does most of the work while the others stay on the home row. Few pushes, few retreats, little contact. Games where this style shows up are short, 37 half-moves on average.</li>
+  <li><strong>Scrum</strong> (58%, wins 46%). Every piece gets involved, pieces push and get pushed, stand in contact and press forward. These games are long, 67 half-moves on average.</li>
+  <li><strong>Under siege</strong> (12%, wins 7%). Pieces stay compact and far back, and the first crossing into enemy territory comes late. Nobody chooses this; it is what a player’s game looks like when the opponent has taken control.</li>
+</ul>
+
+<p>When the two main styles meet, the result is lopsided. Spear and wall against scrum won 42 of 47 games, about 89%. Scrum against scrum, or spear against spear, comes out close to even.</p>
+
+<div class="tablewrap"><table><thead><tr><th>Style ↓ against →</th>
+<th>Spear and wall</th>
+<th>Scrum</th>
+<th>Under siege</th>
+</tr></thead><tbody>
+<tr><td>Spear and wall</td><td>41 games</td><td>89% of 47</td><td>95% of 62</td></tr>
+<tr><td>Scrum</td><td>11% of 47</td><td>157 games</td><td>85% of 13</td></tr>
+<tr><td>Under siege</td><td>5% of 62</td><td>15% of 13</td><td>–</td></tr>
+</tbody></table></div>
+<p class="tablenote">Share of games won by the style in the row against the style in the column, in games between two 16,000-simulation bots. On the diagonal, the number of games where both players fell in the same style.</p>
+
+<h3>Cause or effect?</h3>
+
+<p>Here we must be careful. The numbers describe the whole game, and the whole game includes its ending. A player who broke through early will of course show “one piece did most of the work” and a short game, whether or not that was the plan from the start. The style may be an effect of winning rather than its cause.</p>
+
+<p>To separate the two, we compared winner and loser within the same game, but only over the first 16 half-moves, before the outcome is usually clear. If spear and wall were a plan chosen at the start, it should already be visible there. It barely is. The largest early difference is that the eventual winner had moved fewer different pieces, about half a standard deviation fewer on average, and fewer in about 59% of games. Every other early difference is smaller. Over the whole game the differences are large: the winner made the larger share of its moves with one piece in 79% of games, and retreated less in 80%.</p>
+
+<p>So the plans are not decided at the start, and no early recipe guarantees a win. What does seem consistent is the <em>theme</em> of a successful game: concentrate the attack in one piece and keep enough of the home row intact to stop the opponent from doing the same. Games either resolve quickly when one side manages this, or turn into long scrums when neither does.</p>
+
+<h2>Endings: how games are won</h2>
+
+<p>The most uniform part of the game turned out to be the finish. Most games end with a <em>double threat</em>. A piece reaches the row just in front of the opponent’s home row with both goal cells ahead of it empty. Pieces on the home row cannot be pushed out (the board edge is behind them), so the only defence is to fill both cells or to push the attacker away. With two moves per turn that sounds possible, but the defender rarely has pieces in the right places.</p>
+
+<figure>
+<svg class="board" viewBox="-160 -144 320 288" role="img" aria-label="A double threat">
+<polygon class="cell" points="-121.8,-9.7 -121.8,9.7 -138.6,19.4 -155.4,9.7 -155.4,-9.7 -138.6,-19.4"/>
+<polygon class="cell" points="-104.4,20.3 -104.4,39.7 -121.2,49.4 -138.0,39.7 -138.0,20.3 -121.2,10.6"/>
+<polygon class="cell" points="-87.1,50.3 -87.1,69.7 -103.9,79.4 -120.7,69.7 -120.7,50.3 -103.9,40.6"/>
+<polygon class="cell" points="-69.8,80.3 -69.8,99.7 -86.6,109.4 -103.4,99.7 -103.4,80.3 -86.6,70.6"/>
+<polygon class="cell home-b" points="-52.5,110.3 -52.5,129.7 -69.3,139.4 -86.1,129.7 -86.1,110.3 -69.3,100.6"/>
+<polygon class="cell" points="-104.4,-39.7 -104.4,-20.3 -121.2,-10.6 -138.0,-20.3 -138.0,-39.7 -121.2,-49.4"/>
+<polygon class="cell" points="-87.1,-9.7 -87.1,9.7 -103.9,19.4 -120.7,9.7 -120.7,-9.7 -103.9,-19.4"/>
+<polygon class="cell" points="-69.8,20.3 -69.8,39.7 -86.6,49.4 -103.4,39.7 -103.4,20.3 -86.6,10.6"/>
+<polygon class="cell" points="-52.5,50.3 -52.5,69.7 -69.3,79.4 -86.1,69.7 -86.1,50.3 -69.3,40.6"/>
+<polygon class="cell" points="-35.2,80.3 -35.2,99.7 -52.0,109.4 -68.8,99.7 -68.8,80.3 -52.0,70.6"/>
+<polygon class="cell home-b" points="-17.8,110.3 -17.8,129.7 -34.6,139.4 -51.4,129.7 -51.4,110.3 -34.6,100.6"/>
+<polygon class="cell" points="-87.1,-69.7 -87.1,-50.3 -103.9,-40.6 -120.7,-50.3 -120.7,-69.7 -103.9,-79.4"/>
+<polygon class="cell" points="-69.8,-39.7 -69.8,-20.3 -86.6,-10.6 -103.4,-20.3 -103.4,-39.7 -86.6,-49.4"/>
+<polygon class="cell" points="-52.5,-9.7 -52.5,9.7 -69.3,19.4 -86.1,9.7 -86.1,-9.7 -69.3,-19.4"/>
+<polygon class="cell" points="-35.2,20.3 -35.2,39.7 -52.0,49.4 -68.8,39.7 -68.8,20.3 -52.0,10.6"/>
+<polygon class="cell" points="-17.8,50.3 -17.8,69.7 -34.6,79.4 -51.4,69.7 -51.4,50.3 -34.6,40.6"/>
+<polygon class="cell" points="-0.5,80.3 -0.5,99.7 -17.3,109.4 -34.1,99.7 -34.1,80.3 -17.3,70.6"/>
+<polygon class="cell home-b" points="16.8,110.3 16.8,129.7 0.0,139.4 -16.8,129.7 -16.8,110.3 -0.0,100.6"/>
+<polygon class="cell" points="-69.8,-99.7 -69.8,-80.3 -86.6,-70.6 -103.4,-80.3 -103.4,-99.7 -86.6,-109.4"/>
+<polygon class="cell" points="-52.5,-69.7 -52.5,-50.3 -69.3,-40.6 -86.1,-50.3 -86.1,-69.7 -69.3,-79.4"/>
+<polygon class="cell" points="-35.2,-39.7 -35.2,-20.3 -52.0,-10.6 -68.8,-20.3 -68.8,-39.7 -52.0,-49.4"/>
+<polygon class="cell" points="-17.8,-9.7 -17.8,9.7 -34.6,19.4 -51.4,9.7 -51.4,-9.7 -34.6,-19.4"/>
+<polygon class="cell" points="-0.5,20.3 -0.5,39.7 -17.3,49.4 -34.1,39.7 -34.1,20.3 -17.3,10.6"/>
+<polygon class="cell" points="16.8,50.3 16.8,69.7 0.0,79.4 -16.8,69.7 -16.8,50.3 -0.0,40.6"/>
+<polygon class="cell" points="34.1,80.3 34.1,99.7 17.3,109.4 0.5,99.7 0.5,80.3 17.3,70.6"/>
+<polygon class="cell home-b" points="51.4,110.3 51.4,129.7 34.6,139.4 17.8,129.7 17.8,110.3 34.6,100.6"/>
+<polygon class="cell home-a" points="-52.5,-129.7 -52.5,-110.3 -69.3,-100.6 -86.1,-110.3 -86.1,-129.7 -69.3,-139.4"/>
+<polygon class="cell" points="-35.2,-99.7 -35.2,-80.3 -52.0,-70.6 -68.8,-80.3 -68.8,-99.7 -52.0,-109.4"/>
+<polygon class="cell" points="-17.8,-69.7 -17.8,-50.3 -34.6,-40.6 -51.4,-50.3 -51.4,-69.7 -34.6,-79.4"/>
+<polygon class="cell" points="-0.5,-39.7 -0.5,-20.3 -17.3,-10.6 -34.1,-20.3 -34.1,-39.7 -17.3,-49.4"/>
+<polygon class="cell" points="16.8,-9.7 16.8,9.7 0.0,19.4 -16.8,9.7 -16.8,-9.7 -0.0,-19.4"/>
+<polygon class="cell" points="34.1,20.3 34.1,39.7 17.3,49.4 0.5,39.7 0.5,20.3 17.3,10.6"/>
+<polygon class="cell" points="51.4,50.3 51.4,69.7 34.6,79.4 17.8,69.7 17.8,50.3 34.6,40.6"/>
+<polygon class="cell" points="68.8,80.3 68.8,99.7 52.0,109.4 35.2,99.7 35.2,80.3 52.0,70.6"/>
+<polygon class="cell home-b" points="86.1,110.3 86.1,129.7 69.3,139.4 52.5,129.7 52.5,110.3 69.3,100.6"/>
+<polygon class="cell home-a" points="-17.8,-129.7 -17.8,-110.3 -34.6,-100.6 -51.4,-110.3 -51.4,-129.7 -34.6,-139.4"/>
+<polygon class="cell" points="-0.5,-99.7 -0.5,-80.3 -17.3,-70.6 -34.1,-80.3 -34.1,-99.7 -17.3,-109.4"/>
+<polygon class="cell" points="16.8,-69.7 16.8,-50.3 0.0,-40.6 -16.8,-50.3 -16.8,-69.7 -0.0,-79.4"/>
+<polygon class="cell" points="34.1,-39.7 34.1,-20.3 17.3,-10.6 0.5,-20.3 0.5,-39.7 17.3,-49.4"/>
+<polygon class="cell" points="51.4,-9.7 51.4,9.7 34.6,19.4 17.8,9.7 17.8,-9.7 34.6,-19.4"/>
+<polygon class="cell" points="68.8,20.3 68.8,39.7 52.0,49.4 35.2,39.7 35.2,20.3 52.0,10.6"/>
+<polygon class="cell" points="86.1,50.3 86.1,69.7 69.3,79.4 52.5,69.7 52.5,50.3 69.3,40.6"/>
+<polygon class="cell" points="103.4,80.3 103.4,99.7 86.6,109.4 69.8,99.7 69.8,80.3 86.6,70.6"/>
+<polygon class="cell home-a" points="16.8,-129.7 16.8,-110.3 0.0,-100.6 -16.8,-110.3 -16.8,-129.7 -0.0,-139.4"/>
+<polygon class="cell" points="34.1,-99.7 34.1,-80.3 17.3,-70.6 0.5,-80.3 0.5,-99.7 17.3,-109.4"/>
+<polygon class="cell" points="51.4,-69.7 51.4,-50.3 34.6,-40.6 17.8,-50.3 17.8,-69.7 34.6,-79.4"/>
+<polygon class="cell" points="68.8,-39.7 68.8,-20.3 52.0,-10.6 35.2,-20.3 35.2,-39.7 52.0,-49.4"/>
+<polygon class="cell" points="86.1,-9.7 86.1,9.7 69.3,19.4 52.5,9.7 52.5,-9.7 69.3,-19.4"/>
+<polygon class="cell" points="103.4,20.3 103.4,39.7 86.6,49.4 69.8,39.7 69.8,20.3 86.6,10.6"/>
+<polygon class="cell" points="120.7,50.3 120.7,69.7 103.9,79.4 87.1,69.7 87.1,50.3 103.9,40.6"/>
+<polygon class="cell home-a" points="51.4,-129.7 51.4,-110.3 34.6,-100.6 17.8,-110.3 17.8,-129.7 34.6,-139.4"/>
+<polygon class="cell" points="68.8,-99.7 68.8,-80.3 52.0,-70.6 35.2,-80.3 35.2,-99.7 52.0,-109.4"/>
+<polygon class="cell" points="86.1,-69.7 86.1,-50.3 69.3,-40.6 52.5,-50.3 52.5,-69.7 69.3,-79.4"/>
+<polygon class="cell" points="103.4,-39.7 103.4,-20.3 86.6,-10.6 69.8,-20.3 69.8,-39.7 86.6,-49.4"/>
+<polygon class="cell" points="120.7,-9.7 120.7,9.7 103.9,19.4 87.1,9.7 87.1,-9.7 103.9,-19.4"/>
+<polygon class="cell" points="138.0,20.3 138.0,39.7 121.2,49.4 104.4,39.7 104.4,20.3 121.2,10.6"/>
+<polygon class="cell home-a" points="86.1,-129.7 86.1,-110.3 69.3,-100.6 52.5,-110.3 52.5,-129.7 69.3,-139.4"/>
+<polygon class="cell" points="103.4,-99.7 103.4,-80.3 86.6,-70.6 69.8,-80.3 69.8,-99.7 86.6,-109.4"/>
+<polygon class="cell" points="120.7,-69.7 120.7,-50.3 103.9,-40.6 87.1,-50.3 87.1,-69.7 103.9,-79.4"/>
+<polygon class="cell" points="138.0,-39.7 138.0,-20.3 121.2,-10.6 104.4,-20.3 104.4,-39.7 121.2,-49.4"/>
+<polygon class="cell" points="155.4,-9.7 155.4,9.7 138.6,19.4 121.8,9.7 121.8,-9.7 138.6,-19.4"/>
+<circle class="mark" cx="0.0" cy="-120.0" r="15.6"/>
+<circle class="mark" cx="34.6" cy="-120.0" r="15.6"/>
+<circle class="piece pa" cx="-69.3" cy="-120.0" r="11.6"/>
+<circle class="piece pa" cx="69.3" cy="-120.0" r="11.6"/>
+<circle class="piece pb" cx="69.3" cy="120.0" r="11.6"/>
+<circle class="piece pb" cx="-34.6" cy="120.0" r="11.6"/>
+<circle class="piece pb" cx="-69.3" cy="120.0" r="11.6"/>
+<circle class="piece pa" cx="0.0" cy="0.0" r="11.6"/>
+<circle class="piece pa" cx="-34.6" cy="-60.0" r="11.6"/>
+<circle class="piece pb" cx="-17.3" cy="-30.0" r="11.6"/>
+<circle class="piece pa" cx="103.9" cy="-60.0" r="11.6"/>
+<circle class="piece pb" cx="17.3" cy="-90.0" r="11.6"/>
+<line class="arrow arr-b" x1="12.8" y1="-97.8" x2="5.5" y2="-110.5" marker-end="url(#head-b)"/>
+<line class="arrow arr-b" x1="21.8" y1="-97.8" x2="29.1" y2="-110.5" marker-end="url(#head-b)"/>
+</svg>
+<figcaption>A double threat from a game between two 16,000-simulation bots. Amber (B, moving up) has a piece one step from indigo’s home row, with both cells in front of it (dashed rings) empty. Indigo has two moves, but only one of its pieces can reach a threatened cell, and none is close enough to push the attacker away. Amber won on the next turn, after 22 half-moves. Note the shape: one amber attacker, one in support, and three still at home.</figcaption>
+</figure>
+
+<div class="tablewrap"><table><thead><tr><th>Players</th><th>Double threat</th><th>Relay finish</th><th>Built in last turn</th></tr></thead><tbody>
+<tr><td>MCTS 16,000</td><td>67%</td><td>14%</td><td>21%</td></tr>
+<tr><td>MCTS 2,000</td><td>79%</td><td>5%</td><td>7%</td></tr>
+<tr><td>MCTS 250</td><td>72%</td><td>4%</td><td>6%</td></tr>
+</tbody></table></div>
+<p class="tablenote">“Double threat”: at the start of the loser’s last turn, the winner had at least two different one-move wins. “Built in the final turn”: the winner had no one-move win when its final turn began.</p>
+
+<p>The double threat dominates at every level, but its share falls as the bots get stronger, from 79% at 2,000 simulations to 67% at 16,000. Other finishes become more common. At the top level, 14% of wins end with a relay, a piece pushing a friendly piece onto the goal, against 4–5% at the lower levels. In 21% of wins the winner had no immediate win available at the start of the final turn and created it with the first of its two moves, against 6–7% below. Stronger bots find more ways to finish.</p>
+
+<h2>Does variety shrink as the bots get stronger?</h2>
+
+<p>Now we can put the pieces together, with one more measure for plans. Take the fifteen standardised numbers for every player-game at a given level, and compute their average variance, a single number for how spread out the behaviour is. On this scale the three search levels together average 1; random play scores 0.97.</p>
+
+<figure>
+<svg class="chart" viewBox="0 0 560 250" role="img" aria-label="Spread of playing behaviour">
+<line class="grid" x1="200.0" y1="0" x2="200.0" y2="228"/>
+<text class="tick" x="200.0" y="244" text-anchor="middle">0.00</text>
+<line class="grid" x1="275.0" y1="0" x2="275.0" y2="228"/>
+<text class="tick" x="275.0" y="244" text-anchor="middle">0.25</text>
+<line class="grid" x1="350.0" y1="0" x2="350.0" y2="228"/>
+<text class="tick" x="350.0" y="244" text-anchor="middle">0.50</text>
+<line class="grid" x1="425.0" y1="0" x2="425.0" y2="228"/>
+<text class="tick" x="425.0" y="244" text-anchor="middle">0.75</text>
+<line class="grid" x1="500.0" y1="0" x2="500.0" y2="228"/>
+<text class="tick" x="500.0" y="244" text-anchor="middle">1.00</text>
+<text class="lab" x="190" y="11.2" text-anchor="end">MCTS 250: all</text>
+<rect class="bar a" x="200" y="0" width="222.4" height="16" rx="2"/>
+<text class="val" x="428.4" y="11.2">0.74</text>
+<text class="lab" x="190" y="33.2" text-anchor="end">MCTS 250: winners</text>
+<rect class="bar b" x="200" y="22" width="197.2" height="16" rx="2"/>
+<text class="val" x="403.2" y="33.2">0.66</text>
+<text class="lab" x="190" y="55.2" text-anchor="end">MCTS 2,000: all</text>
+<rect class="bar a" x="200" y="44" width="260.1" height="16" rx="2"/>
+<text class="val" x="466.1" y="55.2">0.87</text>
+<text class="lab" x="190" y="77.2" text-anchor="end">MCTS 2,000: winners</text>
+<rect class="bar b" x="200" y="66" width="229.9" height="16" rx="2"/>
+<text class="val" x="435.9" y="77.2">0.77</text>
+<text class="lab" x="190" y="99.2" text-anchor="end">MCTS 16,000: all</text>
+<rect class="bar a" x="200" y="88" width="270.4" height="16" rx="2"/>
+<text class="val" x="476.4" y="99.2">0.90</text>
+<text class="lab" x="190" y="121.2" text-anchor="end">MCTS 16,000: winners</text>
+<rect class="bar b" x="200" y="110" width="257.7" height="16" rx="2"/>
+<text class="val" x="463.7" y="121.2">0.86</text>
+<text class="lab" x="190" y="143.2" text-anchor="end">Greedy: all</text>
+<rect class="bar n" x="200" y="132" width="253.6" height="16" rx="2"/>
+<text class="val" x="459.6" y="143.2">0.85</text>
+<text class="lab" x="190" y="165.2" text-anchor="end">Greedy: winners</text>
+<rect class="bar b" x="200" y="154" width="253.0" height="16" rx="2"/>
+<text class="val" x="459.0" y="165.2">0.84</text>
+<text class="lab" x="190" y="187.2" text-anchor="end">Random: all</text>
+<rect class="bar n" x="200" y="176" width="290.7" height="16" rx="2"/>
+<text class="val" x="496.7" y="187.2">0.97</text>
+<text class="lab" x="190" y="209.2" text-anchor="end">Random: winners</text>
+<rect class="bar b" x="200" y="198" width="208.7" height="16" rx="2"/>
+<text class="val" x="414.7" y="209.2">0.70</text>
+</svg>
+<figcaption>Spread of playing behaviour (average variance of the fifteen standardised style numbers) at each level, for all players and for winners only.</figcaption>
+</figure>
+
+<p>Behaviour does not become more uniform as the bots improve. It becomes more varied: 0.74 at 250 simulations, 0.87 at 2,000, 0.90 at 16,000, approaching random play. Among winners alone the rise is steeper, from 0.66 to 0.86. Stronger bots win in more different ways.</p>
+
+<p>Taken together:</p>
+
+<ul>
+  <li><strong>Openings:</strong> no best first move at any level. The strongest bot narrows its early sequences somewhat (about three times fewer effective three- and four-move openings), but still has a thousand of them after four half-moves.</li>
+  <li><strong>Plans:</strong> one successful theme, spear and wall, with weak and overlapping styles. Behaviour grows more varied with strength.</li>
+  <li><strong>Endings:</strong> dominated by the double threat, but less so as strength grows, with relays and two-move combinations becoming common.</li>
+</ul>
+
+<h2>Verdict</h2>
+
+<p>The argument from theory was inconclusive, so we measured. For Spinta, depth came with variety, and with more of it as the players improved, at least over the range we could test. The narrowing that perfect play must eventually bring is visible in the first few moves of the strongest bot, but it is small. The middle game and the endings widened instead. The one thing that looks monotonous is the theme of a won game: concentrate, break through with one piece, keep the wall. Even there, when and where the breakthrough comes varies a lot.</p>
+
+<p>For the question running through this series, whether a game is fun, these results are encouraging without being conclusive. Bots do not get bored, and they have no taste. A human might find that “spear and wall” wins too often to be interesting, or might enjoy precisely the tension between holding the wall and launching the spear. The next step is human players, and this analysis tells us what to watch for: whether people discover the same theme, how quickly, and whether the second-player edge shows up in their games too.</p>
+
+<div class="note">
+  <div class="note-title">Limits of this analysis</div>
+  <p>Monte Carlo search is random, so some of the variety between games is search noise rather than genuine choice. The deep search and the coincidence measure address this for the openings, but not for the middle game. The fifteen style numbers were chosen by us; different numbers might reveal styles these miss. The clusters are weak, so their boundaries and percentages should be read loosely. And the bots are only bots: they explore the game through random playouts, which may be blind to ideas that humans would find natural.</p>
+</div>
+
+<footer>Data: 320 games at 16,000 simulations per move, 400 games each at 2,000 and 250 simulations, 400 Greedy and 400 random games, all with the current rules (radius 4, five pieces each, two moves per turn, ko and no-pushback). Opening values from eight independent searches of 400,000 simulations per position. All analysis in plain Python.</footer>
+</article>

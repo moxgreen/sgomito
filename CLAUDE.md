@@ -171,6 +171,11 @@ hexpush/
   sweep.py       # griglia di parametri, chiama simulate, aggrega risultati
   ladder.py      # curva a raddoppi MCTS (docs/curva_raddoppi.md), --against BOT
   watch.py       # guarda una partita in ASCII
+  corpus.py      # partite complete mossa per mossa in JSONL (riprendibile), per le analisi di stile
+  strategies.py  # varietà: aperture a meno della simmetria, stili (k-means + silhouette), finali
+  openings.py    # ricerca profonda (più alberi da 400k simulazioni) sulle prime mosse
+docs/articles/   # articoli in inglese per appassionati (HTML pubblicati come Artifact); sorgenti
+                 # e script che li rigenerano dai dati in docs/articles/src/
 tests/
   test_game.py   # mosse legali, spinte, bordo, vittoria, ripetizione
   test_bots.py   # bot, e coerenza tra FastBoard e il motore di riferimento
@@ -246,10 +251,47 @@ uniformemente.
    una spinta del turno avversario precedente. Con `no_pushback` scende quasi a zero
    (restano solo casi in cui sulla cella c'è ormai una pedina propria); Greedy contro
    Greedy: semimosse 38 → 30, spinte 66% → 54% delle mosse, A 47% in entrambi i casi.
-   **Le misure MCTS del punto 5 sono senza `no_pushback`: vanno rifatte.**
+   Le misure MCTS del punto 5 erano senza `no_pushback`: rifatte al punto 7.
 
-Candidato attuale: **v1 + `ko` + `no_pushback` + `moves_per_turn=2`** (regole del sito web). Secondo il protocollo si può
-passare agli umani e a Django. Da tenere d'occhio: leggero vantaggio di A (53.8%).
+7. **Protocollo a raddoppi con `no_pushback`** (ora default; `results/ladder_nopushback_*`,
+   200 partite per incontro, fino a 12800 simulazioni): Elo per raddoppio 111 / 147 / 100 /
+   111 / 111 / 98 / 145 da 100-200 a 6400-12800, nessuna discesa; ~820 Elo in totale.
+   Patte 2 su 1400. Quota di visite della mossa scelta dal 15% (200) al 39% (12800).
+   MCTS(2000) contro Greedy 83.5%, Rusher 89.5%, Turtle e PingPong 100%.
+
+8. **Varietà delle partite** (`results/strategie_*`, `results/aperture.txt`; corpus
+   MCTS 250 / 2000 / 16000 da 400 / 400 / 320 partite più Greedy e Random di riferimento):
+   - Aperture: nessuna prima mossa migliore. Ricerca profonda (8 x 400k simulazioni): le 5
+     prime mosse di A (a meno della simmetria) valgono 0.499-0.502, le risposte di B
+     0.495-0.505. MCTS(16000) usa tutte e 5 le aperture (14-26%). Aperture effettive
+     (1 / probabilità che due partite coincidano nelle prime k semimosse) a k=3: 178 per
+     MCTS(16000), ~480 per MCTS(2000), 539 random; a k=4: 1001 contro ~5300. Il bot forte
+     restringe un po', ma dopo 7 semimosse le partite sono tutte diverse.
+   - Stili (k-means su 15 caratteristiche, solo MCTS(16000), silhouette 0.22 = struttura
+     debole): "lancia e muro" (una pedina fa quasi tutto, le altre restano a casa; 30%,
+     vince 74%, partite brevi), "mischia" (tutte le pedine, spinte e contatto; 58%, vince
+     46%, partite lunghe), "assediato" (12%, vince 7%: effetto, non scelta). Lancia contro
+     mischia vince 42 su 47. Nelle prime 16 semimosse vincitore e perdente quasi non si
+     distinguono: lo stile è più l'aspetto di una partita vinta che un piano scelto
+     all'inizio.
+   - Finali: la doppia minaccia (pedina in fila R-1 con le due celle davanti libere)
+     chiude il 79% delle partite di MCTS(2000) e il 67% di MCTS(16000); con la forza
+     crescono staffette (5% → 14%) e vittorie costruite nell'ultimo turno (7% → 21%).
+   - La dispersione degli stili cresce con la forza (0.74 / 0.87 / 0.90, random 0.97): la
+     profondità qui porta varietà, tranne nel tema della vittoria (concentrare, sfondare,
+     tenere il muro).
+   - **Vantaggio del secondo giocatore ai livelli alti**: A vince 53.2% / 48.5% / 42.5%
+     (IC 37-48%) con MCTS 250 / 2000 / 16000. La compensazione della prima mossa singola
+     forse è troppo generosa.
+
+Articoli (per appassionati, in inglese): `docs/articles/bots.html` (bot e profondità
+statistica, https://claude.ai/artifact/GVAUBRCEUCGpa84nNeSt4E) e `docs/articles/variety.html`
+(profondità e varietà, https://claude.ai/artifact/XyECex874wGPwE3hBk5ssx).
+
+Candidato attuale: **v1 + `ko` + `no_pushback` + `moves_per_turn=2`** (regole del sito web,
+`no_pushback` ora è il default del `Ruleset`). Secondo il protocollo si può passare agli
+umani e a Django. Da tenere d'occhio: tra bot forti vince più spesso B (57.5% con
+MCTS(16000)), mentre tra bot deboli A era avanti.
 
 ## Domande ancora aperte (da decidere con i dati, non adesso)
 

@@ -1,0 +1,24 @@
+<div class="notice">
+  <p><strong>Games are recorded for research.</strong> Every game, with a friend or against
+    the computer, is saved with all its details: every move, which piece made it, the
+    timing, the result. We use them to study and improve the rules. At the end we'll also
+    ask you how much fun you had.</p>
+  <p>You can stay anonymous: any nickname will do, but you must choose one. To register
+    your nickname, add a password: then only you can use it, from any device.
+    <strong>Passwords cannot be recovered</strong>: if you forget yours, that nickname is
+    lost.</p>
+</div>
+<div class="identity">
+  <label class="name-field">Nickname
+    <input type="text" name="name" value="{{ name }}" maxlength="30" required
+      {% if autofocus %}autofocus{% endif %} autocomplete="username"
+      placeholder="how others will see you">
+  </label>
+  <label class="name-field">Password <span class="note">(optional)</span>
+    <input type="password" name="password" maxlength="128" autocomplete="current-password"
+      placeholder="{% if signed_in %}not needed for {{ signed_in }}{% else %}only to register the nickname{% endif %}">
+  </label>
+</div>
+<p class="note">{% if signed_in %}You're signed in as <strong>{{ signed_in }}</strong>
+  (registered nickname).{% else %}Leave the password empty to play anonymously. Already
+  registered? Enter your password.{% endif %}</p>

@@ -1,4 +1,4 @@
-<title>Robots That Playtest Spinta</title>
+<title>Measuring Depth by Doubling</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -136,6 +136,9 @@ svg.board { max-width: 22rem; margin: 0 auto; }
   body { font-size: 1.05rem; padding-block: 2rem 3rem; }
   figure.wide { margin-left: 0; margin-right: 0; }
 }
+.tablenote { font-size: 0.9rem; color: var(--muted); line-height: 1.45; }
+.scrollfig { overflow-x: auto; }
+.scrollfig svg { min-width: 34rem; }
 
 </style>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -145,14 +148,20 @@ svg.board { max-width: 22rem; margin: 0 auto; }
 </defs></svg>
 <article>
 <header>
-  <div class="kicker"><span class="dot a"></span><span class="dot b"></span>Spinta · notes from the workshop</div>
-  <h1>Robots that playtest a game nobody has played yet</h1>
-  <p class="dek">How a handful of simple programs, and one clever search algorithm, told us whether a new board game was broken before a single human sat down to play it.</p>
+  <div class="kicker"><span class="dot a"></span><span class="dot b"></span>How to tell if a game is fun, with simulations · Part 1</div>
+  <h1>Measuring the depth of a game by doubling a robot’s brain</h1>
+  <p class="dek">A computer cannot tell you whether a game is fun. It can tell you whether the game rewards thinking, and it can put a number on how much.</p>
 </header>
 
-<p>Spinta (Italian for “push”) is a two-player game invented on paper a few weeks ago. Before asking friends to spend evenings on it, we wanted to know whether the rules were sound. Does the game end, or do players shuffle forever? Does the first player win too often? Is there a cheap trick that beats everything? And, the hardest question, does thinking harder actually help?</p>
+<p>Spinta (Italian for “push”) is a two-player board game invented on paper a few weeks ago. Before asking friends to spend their evenings on it, we wanted to know whether it deserved them. Fun is a human verdict and no program can deliver it. But some of its preconditions are measurable, and a simulation can check them cheaply:</p>
 
-<p>Human playtesters are slow and precious. Computers are fast and tireless, but they are only as good as the way they play. This article describes the bots we built, from a coin-flipper to a Monte Carlo tree search that discovers strategy on its own, and the arithmetic we used to decide whether to trust them.</p>
+<ul>
+  <li>The game must not be <strong>broken</strong>: it should end, the first player should not win too often, and no cheap trick should beat everything.</li>
+  <li>The game should be <strong>deep</strong>: a player who thinks harder should keep beating one who thinks less, at every level of skill. A game that is “solved” after an afternoon stops being interesting.</li>
+  <li>The game should be <strong>varied</strong>: games should not all look the same. That is the subject of <a href="https://claude.ai/artifact/XyECex874wGPwE3hBk5ssx">Part 2</a>.</li>
+</ul>
+
+<p>This article is about the first two, and mostly about depth. The idea is simple. Build a robot whose strength you can turn up with a dial, let it play against itself at many settings, and see whether turning the dial keeps paying off. To get there we need a ladder of bots, from a coin-flipper to a Monte Carlo tree search that finds strategy on its own, and a little statistics to decide when to trust them.</p>
 
 <h2>The game in one minute</h2>
 
@@ -387,9 +396,9 @@ svg.board { max-width: 22rem; margin: 0 auto; }
 <figcaption>A push. The moving piece takes the cell of the piece it pushes, which slides one cell on. The push is legal only because the cell behind the amber piece is free.</figcaption>
 </figure>
 
-<p>Each of the rules in the last bullet is there because a bot found a hole in an earlier version. More on that below.</p>
+<p>The two anti-shuffling rules, and the two moves per turn, are there because a bot found a hole in an earlier version of the rules. More on that below.</p>
 
-<h2>A ladder of bots</h2>
+<h2>Is it broken? A ladder of bots</h2>
 
 <p>No single bot can answer every question. A bot that plays well is slow; a bot that is fast plays badly; a bot that plays one particular style tells you about that style and nothing else. So we built a ladder, and we did not climb to the next rung until the current one had answered its question.</p>
 
@@ -419,13 +428,13 @@ svg.board { max-width: 22rem; margin: 0 auto; }
 
 <ul>
   <li>In the first version of the rules, with no ko, two Greedy bots drew 67% of their games by threefold repetition. Pieces pushed each other back and forth until the position repeated. The <strong>ko</strong> rule fixed that.</li>
-  <li>With one move per turn, Rusher beat our strong search bot most of the time. The home row is an invulnerable wall (nothing can be pushed out through the edge behind it), so the defender’s pieces are safest when they do not move, and each defensive push draws a defender out of the wall. A runner in the second-to-last row threatens two goal cells at once. Allowing <strong>two moves per turn</strong> turned this around: now a defender can block and counter in the same turn, and the search bot beats Rusher about 95% of the time.</li>
+  <li>With one move per turn, Rusher beat our strong search bot most of the time. The home row is an invulnerable wall (nothing can be pushed out through the edge behind it), so the defender’s pieces are safest when they do not move, and each defensive push draws a defender out of the wall. A runner in the second-to-last row threatens two goal cells at once. Allowing <strong>two moves per turn</strong> turned this around: now a defender can block and counter in the same turn, and the search bot beats Rusher about nine times in ten.</li>
   <li>With two moves per turn the ko rule stopped catching ping-pong, because the other move of the turn changes the position, so it is never exactly restored. Between two Greedy bots, a third of all pushes simply undid the opponent’s last push. The <strong>no-pushback</strong> rule closes that gap.</li>
 </ul>
 
-<h2>Rung three: Monte Carlo tree search</h2>
+<h2>A robot with a strength dial</h2>
 
-<p>The saboteurs check that the rules are not broken. To ask whether the game rewards thought, we need a bot that does not carry our prejudices: one that is given the rules and nothing else, and that plays better the longer it thinks. Monte Carlo tree search (MCTS) is exactly that. It is the family of algorithms behind the first strong Go programs, before neural networks took over.</p>
+<p>The saboteurs check that the rules are not broken. To ask whether the game rewards thought, we need a bot that does not carry our prejudices: one that is given the rules and nothing else, and that plays better the longer it thinks. Monte Carlo tree search (MCTS) is exactly that, and its thinking time is a single number, the count of simulations per move, which makes it the dial we need. It is the family of algorithms behind the first strong Go programs, before neural networks took over.</p>
 
 <h3>Judging a position by playing it out at random</h3>
 
@@ -452,7 +461,7 @@ svg.board { max-width: 22rem; margin: 0 auto; }
 <p>UCB1 chooses among the moves available now. MCTS applies the same rule recursively, growing a tree of positions in memory. Each simulation goes through four steps:</p>
 
 <figure class="wide">
-<svg class="diagram" viewBox="0 0 640 230" role="img" aria-label="The four steps of one MCTS simulation">
+<div class="scrollfig"><svg class="diagram" viewBox="0 0 640 230" role="img" aria-label="The four steps of one MCTS simulation">
 <text x="80" y="16" text-anchor="middle" font-weight="600">1 · Selection</text>
 <line class="edge" x1="80.0" y1="40" x2="39.2" y2="90"/>
 <line class="edge hot" x1="80.0" y1="40" x2="80.0" y2="90"/>
@@ -520,7 +529,7 @@ svg.board { max-width: 22rem; margin: 0 auto; }
 <text class="cap" x="590.3" y="189">+1</text>
 <text class="cap" x="560" y="222" text-anchor="middle">credit the result upward</text>
 <line x1="480" y1="30" x2="480" y2="205" class="edge" stroke-dasharray="2 4"/>
-</svg>
+</svg></div>
 <figcaption>One simulation. Selection walks down the tree choosing children by the UCB formula; expansion adds one new position; a random playout finishes the game; the result is added to every node on the path.</figcaption>
 </figure>
 
@@ -549,30 +558,42 @@ svg.board { max-width: 22rem; margin: 0 auto; }
 
 <p>Two moves per turn add a small twist. The tree no longer alternates strictly between players, since one player often makes two consecutive moves. Each node simply remembers who moved into it, and the result is credited to that player.</p>
 
-<h2>Does thinking pay? The doubling test</h2>
+<h2>What “deep” means, in numbers</h2>
 
-<p>A deep game is one where a better player keeps beating a slightly worse one, at every level of skill. Chess has this property; tic-tac-toe does not, since after a few minutes of thought everyone plays perfectly and every game is a draw. MCTS lets us test this directly: the number of simulations per move is a dial for how hard the bot thinks.</p>
+<p>Tic-tac-toe is fun for about a week. After that, both players know how to force a draw, and thinking harder no longer changes anything. Chess has stayed interesting for centuries because there is always a better player: between a beginner and the strongest engines lie thousands of Elo points, and at every level along the way, a slightly stronger player wins more often than not.</p>
 
-<p>We play a bot against a copy of itself with twice the simulations: 100 against 200, 200 against 400, and so on, 200 games per pairing, with colours alternating. The results are expressed as Elo differences. If the stronger side scores a fraction <span class="math">p</span> of the points, the Elo difference is</p>
+<p>Game designers have turned this intuition into a definition. Picture a chain of players, each of whom reliably beats the next one down, say three games out of four. The <em>depth</em> of a game is the length of the longest such chain. Tic-tac-toe has a very short chain: the random player, the beginner who blocks obvious lines, and the perfect player. Chess has a very long one. Depth in this sense is statistical: it is not about how complicated the rules are, but about how many distinguishable levels of skill the game supports.</p>
+
+<p>We cannot hire a few dozen players of carefully graded strength for a game invented last month. But MCTS gives us something almost as good: a family of players that differ only in how much they think. If doubling the thinking keeps buying a consistent edge, each doubling is one more link in the chain.</p>
+
+<h3>The doubling test</h3>
+
+<p>We play the bot against a copy of itself with twice the simulations: 100 against 200, 200 against 400, and so on up to 6,400 against 12,800. Each pairing plays 200 games, with colours alternating. Results are expressed as Elo differences. If the stronger side scores a fraction <span class="math">p</span> of the points (a draw counts as half), the Elo difference is</p>
 
 <p class="eq"><i>D</i> = 400 · log<sub>10</sub>( <i>p</i> / (1 − <i>p</i>) )</p>
 
-<p>so 64% is about +100, 76% about +200, and 50% is 0. The scale is additive: if A is 100 Elo above B and B is 100 above C, A should score about 76% against C.</p>
+<p>so 64% is about +100, 76% about +200, and 50% is 0. Elo differences add up along a chain: if A is 100 above B and B is 100 above C, A should score about 76% against C. That makes Elo the natural unit for chain length. A gap of 200, or three wins in four, is a reasonable “reliably beats”, so every 200 Elo of total range is roughly one more link.</p>
 
-<p>The signature of a shallow game is a gain that shrinks with every doubling, heading to zero once both sides play “well enough”. A deep game shows a roughly constant gain per doubling. Here is what Spinta gave, with the current rules:</p>
+<p>The two kinds of game leave different fingerprints. In a shallow game the gain per doubling shrinks: the early doublings help a lot, because 100 simulations is close to random play, but once both sides play “well enough” the results drift toward 50%, or toward all draws. In a deep game the gain per doubling stays roughly constant as far as you can afford to look.</p>
+
+<p>Two hundred games is not many. The 95% uncertainty on a single pairing is about ±50 Elo, shown as bars in the chart, so individual points wobble and only the overall trend means much.</p>
+
+<p>Here is what Spinta gave, with the current rules:</p>
 
 <div class="tablewrap"><table><thead><tr><th>Stronger</th><th>Weaker</th><th>Won–lost–drawn</th><th>Score</th><th>Elo</th><th>95% interval</th></tr></thead><tbody>
-<tr><td>MCTS 200</td><td>MCTS 100</td><td>132–67–1</td><td>66.2%</td><td>+117</td><td>+68 to +171</td></tr>
-<tr><td>MCTS 400</td><td>MCTS 200</td><td>133–67–0</td><td>66.5%</td><td>+119</td><td>+70 to +173</td></tr>
-<tr><td>MCTS 800</td><td>MCTS 400</td><td>130–70–0</td><td>65.0%</td><td>+108</td><td>+59 to +161</td></tr>
-<tr><td>MCTS 1 600</td><td>MCTS 800</td><td>120–80–0</td><td>60.0%</td><td>+70</td><td>+22 to +121</td></tr>
-<tr><td>MCTS 3 200</td><td>MCTS 1 600</td><td>139–61–0</td><td>69.5%</td><td>+143</td><td>+93 to +199</td></tr>
+<tr><td>MCTS 200</td><td>MCTS 100</td><td>131–69–0</td><td>65.5%</td><td>+111</td><td>+63 to +165</td></tr>
+<tr><td>MCTS 400</td><td>MCTS 200</td><td>140–60–0</td><td>70.0%</td><td>+147</td><td>+97 to +204</td></tr>
+<tr><td>MCTS 800</td><td>MCTS 400</td><td>128–72–0</td><td>64.0%</td><td>+100</td><td>+51 to +153</td></tr>
+<tr><td>MCTS 1 600</td><td>MCTS 800</td><td>131–69–0</td><td>65.5%</td><td>+111</td><td>+63 to +165</td></tr>
+<tr><td>MCTS 3 200</td><td>MCTS 1 600</td><td>131–69–0</td><td>65.5%</td><td>+111</td><td>+63 to +165</td></tr>
+<tr><td>MCTS 6 400</td><td>MCTS 3 200</td><td>127–72–1</td><td>63.7%</td><td>+98</td><td>+50 to +151</td></tr>
+<tr><td>MCTS 12 800</td><td>MCTS 6 400</td><td>139–60–1</td><td>69.8%</td><td>+145</td><td>+95 to +201</td></tr>
 <tr class="sep"><td colspan="6">Checks against the other bots</td></tr>
-<tr><td>MCTS 100</td><td>Random</td><td>199–1–0</td><td>99.5%</td><td>+920</td><td>+730 to +1040</td></tr>
-<tr><td>MCTS 2 000</td><td>Greedy</td><td>159–40–1</td><td>79.8%</td><td>+238</td><td>+183 to +306</td></tr>
+<tr><td>MCTS 100</td><td>Random</td><td>200–0–0</td><td>100.0%</td><td>+1040</td><td>+1040 to +1040</td></tr>
+<tr><td>MCTS 2 000</td><td>Greedy</td><td>167–33–0</td><td>83.5%</td><td>+282</td><td>+223 to +357</td></tr>
 <tr><td>MCTS 2 000</td><td>Pingpong</td><td>200–0–0</td><td>100.0%</td><td>+1040</td><td>+1040 to +1040</td></tr>
-<tr><td>MCTS 2 000</td><td>Rusher</td><td>188–12–0</td><td>94.0%</td><td>+478</td><td>+396 to +622</td></tr>
-<tr><td>MCTS 2 000</td><td>Turtle</td><td>198–0–2</td><td>99.5%</td><td>+920</td><td>+730 to +1040</td></tr>
+<tr><td>MCTS 2 000</td><td>Rusher</td><td>179–21–0</td><td>89.5%</td><td>+372</td><td>+305 to +470</td></tr>
+<tr><td>MCTS 2 000</td><td>Turtle</td><td>200–0–0</td><td>100.0%</td><td>+1040</td><td>+1040 to +1040</td></tr>
 </tbody></table></div>
 
 <figure>
@@ -586,29 +607,47 @@ svg.board { max-width: 22rem; margin: 0 auto; }
 <line class="grid" x1="52" y1="12.0" x2="450" y2="12.0"/>
 <text class="tick" x="46" y="16.0" text-anchor="end">+300</text>
 <text class="tick" x="52.0" y="236" text-anchor="middle">200</text>
-<text class="tick" x="151.5" y="236" text-anchor="middle">400</text>
-<text class="tick" x="251.0" y="236" text-anchor="middle">800</text>
-<text class="tick" x="350.5" y="236" text-anchor="middle">1,600</text>
-<text class="tick" x="450.0" y="236" text-anchor="middle">3,200</text>
+<text class="tick" x="118.3" y="236" text-anchor="middle">400</text>
+<text class="tick" x="184.7" y="236" text-anchor="middle">800</text>
+<text class="tick" x="251.0" y="236" text-anchor="middle">1,600</text>
+<text class="tick" x="317.3" y="236" text-anchor="middle">3,200</text>
+<text class="tick" x="383.7" y="236" text-anchor="middle">6,400</text>
+<text class="tick" x="450.0" y="236" text-anchor="middle">12,800</text>
 <text class="axis" x="251" y="256" text-anchor="middle">simulations per move of the stronger side</text>
 <text class="axis" x="46" y="236" text-anchor="end"></text>
-<line class="err" x1="52.0" y1="172.7" x2="52.0" y2="101.4"/>
-<line class="err" x1="151.5" y1="171.4" x2="151.5" y2="99.9"/>
-<line class="err" x1="251.0" y1="179.2" x2="251.0" y2="108.6"/>
-<line class="err" x1="350.5" y1="204.5" x2="350.5" y2="135.8"/>
-<line class="err" x1="450.0" y1="155.3" x2="450.0" y2="82.0"/>
-<path class="line a" d="M52.0,138.8 L151.5,137.4 L251.0,145.4 L350.5,171.2 L450.0,120.8"/>
-<circle class="dot a" cx="52.0" cy="138.8" r="3.5"/>
-<circle class="dot a" cx="151.5" cy="137.4" r="3.5"/>
-<circle class="dot a" cx="251.0" cy="145.4" r="3.5"/>
-<circle class="dot a" cx="350.5" cy="171.2" r="3.5"/>
-<circle class="dot a" cx="450.0" cy="120.8" r="3.5"/>
-<text class="serieslab a" x="458.0" y="124.8">Elo gained by doubling</text>
+<line class="err" x1="52.0" y1="176.6" x2="52.0" y2="105.7"/>
+<line class="err" x1="118.3" y1="152.5" x2="118.3" y2="78.8"/>
+<line class="err" x1="184.7" y1="184.3" x2="184.7" y2="114.2"/>
+<line class="err" x1="251.0" y1="176.6" x2="251.0" y2="105.7"/>
+<line class="err" x1="317.3" y1="176.6" x2="317.3" y2="105.7"/>
+<line class="err" x1="383.7" y1="185.6" x2="383.7" y2="115.6"/>
+<line class="err" x1="450.0" y1="153.9" x2="450.0" y2="80.4"/>
+<path class="line a" d="M52.0,142.8 L118.3,117.9 L184.7,150.7 L251.0,142.8 L317.3,142.8 L383.7,152.0 L450.0,119.4"/>
+<circle class="dot a" cx="52.0" cy="142.8" r="3.5"/>
+<circle class="dot a" cx="118.3" cy="117.9" r="3.5"/>
+<circle class="dot a" cx="184.7" cy="150.7" r="3.5"/>
+<circle class="dot a" cx="251.0" cy="142.8" r="3.5"/>
+<circle class="dot a" cx="317.3" cy="142.8" r="3.5"/>
+<circle class="dot a" cx="383.7" cy="152.0" r="3.5"/>
+<circle class="dot a" cx="450.0" cy="119.4" r="3.5"/>
+<text class="serieslab a" x="458.0" y="123.4">Elo gained by doubling</text>
 </svg>
-<figcaption>placeholder</figcaption>
+<figcaption>Elo gained at each doubling of the simulations, with 95% intervals. The line stays roughly level, between about 100 and 150 Elo per doubling, all the way to 12,800 simulations per move.</figcaption>
 </figure>
 
-<p>placeholder</p>
+<p>The gain per doubling does not shrink. Across seven doublings, from 100 to 12,800 simulations, every step is worth between about 100 and 150 Elo, with no trend beyond the noise. The last doubling, 6,400 against 12,800, is one of the largest. In total the dial spans about 820 Elo. In the language of the skill chain, that is four links of 200 Elo each, and the chain shows no sign of running out. Against the weakest bot, the strongest would be expected to win about 99 games in 100.</p>
+
+<p>Two other columns of the run support this reading. Draws practically never happen (2 in 1,400 games), so better play does not collapse into safe stalemates. And the bots grow more decisive as they think longer: the share of the search’s visits that goes to the move it finally plays rises from 15% at 200 simulations to 39% at 12,800. A stronger bot does not only win more; it sees more clearly which moves matter.</p>
+
+<p>Then the controls. With 2,000 simulations the bot beats Greedy 84% of the time and Rusher 90%, and wins every game against Turtle and Ping-pong. The extra strength is real against opponents that play differently, not just against copies of itself.</p>
+
+<h3>How far to trust the curve</h3>
+
+<ul>
+  <li><strong>It is a lower bound.</strong> A flat curve says the chain is at least as long as we measured. It cannot say how long it is beyond that. Every game with a finite number of positions is eventually solved by enough computation; the question is only whether that point is far beyond what people can do.</li>
+  <li><strong>Self-play exaggerates.</strong> A program playing a slightly weaker copy of itself exploits the exact blind spots of that copy. Against a different kind of opponent the gaps are usually smaller. The controls against Greedy and the saboteurs are there to check that the extra strength is real.</li>
+  <li><strong>It measures depth as this algorithm sees it.</strong> Random playouts are a peculiar way to judge a position. A game could look deep to MCTS because MCTS is clumsy at it, or shallow because some idea that humans would need years to find is obvious to random sampling. Human games are the final test.</li>
+</ul>
 
 <h2>Making it fast enough</h2>
 
@@ -618,12 +657,14 @@ svg.board { max-width: 22rem; margin: 0 auto; }
   <li><strong>PyPy.</strong> The same code run with PyPy, a Python implementation with a just-in-time compiler, plays out random games about ten times faster.</li>
   <li><strong>A flat board for playouts.</strong> The rules engine uses readable, immutable positions. The search copies the position into a plain array of 61 cells with precomputed neighbour tables, and updates it in place.</li>
   <li><strong>Uniform random moves without listing them.</strong> To pick a random legal move, pick a random (piece, direction) pair out of the 5 × 6 = 30 and try again if it is illegal. Conditioned on being accepted, every legal move is equally likely, so the result is exactly uniform, and on average it takes 30 / (number of legal moves) tries. That is much cheaper than generating the full list of legal moves at every step.</li>
-  <li><strong>Several trees at once.</strong> The strongest level on the web version runs independent searches on every processor core of your device and adds up their visit counts for each move at the root. The trees never talk to each other, which is wasteful, but it is simple and it scales.</li>
+  <li><strong>Several trees at once.</strong> The strongest level on the web version runs several independent searches in parallel on your device’s processor cores and adds up their visit counts for each move at the root. The trees never talk to each other, which is wasteful, but it is simple and it scales.</li>
 </ul>
 
 <h2>What the robots cannot tell us</h2>
 
-<p>The bots can rule out the ways a game can be broken: endless draws, a decisive first-move advantage, a single cheap plan that beats everything, or a ceiling beyond which thinking stops paying. Spinta, with its current rules, passes all of these tests. A companion article looks at what the strongest bots actually do when they play each other: how they open, and whether their games all look alike.</p>
+<p>The bots can rule out the ways a game can be broken: endless draws, a decisive first-move advantage, a single cheap plan that beats everything, or a ceiling beyond which thinking stops paying. Spinta, with its current rules, passes these tests, with one result to keep an eye on: between the strongest bots, the second player wins about 57% of the games, so the compensation for moving first may be slightly too generous.</p>
+
+<p>Depth is necessary for a game to stay interesting, but it may not be enough. A game could reward calculation forever while every game unfolds along the same plan. <a href="https://claude.ai/artifact/XyECex874wGPwE3hBk5ssx">Part 2</a> asks whether depth brings variety with it, by looking at what the strongest bots actually do when they play each other.</p>
 
 <p>What the bots cannot say is whether the game is <em>fun</em>: whether the pushes feel clever, whether a comeback feels possible, whether you want a rematch. For that we need people. The search bot, meanwhile, gets a second job: it is the opponent in the solo mode.</p>
 

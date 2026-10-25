@@ -14,9 +14,9 @@ import secrets
 from django.conf import settings
 from django.utils import timezone
 
-from hexpush.board import other
+from hexpush.board import DIR_NAMES, other
 from hexpush.game import PASS, apply, legal_moves, new_game
-from hexpush.serialize import move_to_dict, search_state_to_dict, state_to_dict
+from hexpush.serialize import move_targets, move_to_dict, search_state_to_dict, state_to_dict
 
 # gestione del tempo del computer (mcts.TimePolicy, in JSON), uguale per tutti i livelli:
 # None = sempre il budget pieno
@@ -24,29 +24,33 @@ TIME_POLICY = None
 
 
 def mcts_level(name, n_sim):
-    return name, f"{n_sim} simulazioni", {"n_sim": n_sim, "time_limit": None, "workers": 1,
+    return name, f"{n_sim} simulations", {"n_sim": n_sim, "time_limit": None, "workers": 1,
                                          "policy": TIME_POLICY}
 
 
 def champion_level():
-    """Più alberi MCTS paralleli nel browser (un Web Worker per ogni due core), a tempo:
-    la forza dipende dal dispositivo di chi gioca."""
-    seconds = settings.HEXPUSH_CHAMPION_SECONDS
-    return ("Campione", f"{seconds:g} s per mossa su tutti i core",
-            {"n_sim": 10**7, "time_limit": seconds, "workers": "auto", "policy": TIME_POLICY})
+    """Più alberi MCTS paralleli nel browser (un Web Worker per ogni due core) che si
+    dividono un numero fisso di simulazioni: la forza non dipende dal dispositivo, solo
+    l'attesa. Il limite di tempo è solo un tetto per i dispositivi lenti."""
+    n_sim = settings.HEXPUSH_CHAMPION_SIMS
+    return ("Champion", f"{n_sim} simulations on all cores",
+            {"n_sim": n_sim, "time_limit": settings.HEXPUSH_CHAMPION_MAX_SECONDS,
+             "workers": "auto", "policy": TIME_POLICY})
 
 
-# chiave -> (nome, descrizione, parametri della ricerca nel browser: simulazioni per
-# albero, limite in secondi, alberi paralleli). Vedi static/play/computer.js.
+# chiave -> (nome, descrizione, parametri della ricerca nel browser: simulazioni in
+# totale, limite in secondi, alberi paralleli). Vedi static/play/computer.js.
 LEVELS = {
-    "facile": mcts_level("Facile", 200),
-    "medio": mcts_level("Medio", 1000),
-    "difficile": mcts_level("Difficile", 4000),
-    "esperto": mcts_level("Esperto", 12000),
-    "campione": champion_level(),
+    "easy": mcts_level("Easy", 200),
+    "medium": mcts_level("Medium", 1000),
+    "hard": mcts_level("Hard", 4000),
+    "expert": mcts_level("Expert", 12000),
+    "champion": champion_level(),
 }
 BOT = "computer"  # nei posti, al posto dell'identificativo di un giocatore umano
 NAME_MAX = 30
+# statistiche della ricerca che il browser manda con ogni mossa del computer
+BOT_INFO = ("workers", "sims", "reused", "ms", "forced")
 
 MATCHES = {}
 
@@ -59,10 +63,32 @@ def clean_name(name):
     """Nome del giocatore ripulito; ValueError se vuoto o troppo lungo."""
     name = " ".join(str(name or "").split())
     if not name:
-        raise ValueError("scrivi il tuo nome")
+        raise ValueError("choose a nickname")
     if len(name) > NAME_MAX:
-        raise ValueError(f"il nome può avere al massimo {NAME_MAX} caratteri")
+        raise ValueError(f"the nickname can be at most {NAME_MAX} characters long")
     return name
+
+
+def piece_names(board):
+    """Nome di ogni pedina, cella -> 'A1', 'A2', ...: per A in ordine di cella (prima r,
+    poi q), per B nell'ordine riflesso, così B1 è l'immagine di A1 nel centro."""
+    names = {}
+    for p, order in (("A", lambda c: (c[1], c[0])), ("B", lambda c: (-c[1], -c[0]))):
+        cells = sorted((c for c, owner in board.items() if owner == p), key=order)
+        names.update({c: f"{p}{i}" for i, c in enumerate(cells, 1)})
+    return names
+
+
+def clean_bot_info(info):
+    """Statistiche della ricerca mandate dal browser: solo le chiavi note, solo numeri."""
+    if not isinstance(info, dict):
+        return None
+    out = {}
+    for k in BOT_INFO:
+        v = info.get(k)
+        if isinstance(v, bool) or (isinstance(v, (int, float)) and abs(v) < 1e12):
+            out[k] = round(v, 1) if isinstance(v, float) else v
+    return out or None
 
 
 class Match:
@@ -70,22 +96,31 @@ class Match:
         self.id = match_id or new_id()
         self.rules = rules
         self.started = started or timezone.now()
-        self.state = new_game(rules)
-        self.log = []                     # (giocatore, mossa, secondi) in ordine, passi compresi
-        self.turn_start = self.state      # stato all'inizio del turno in corso
-        self.turn_start_log = 0           # len(log) all'inizio del turno in corso
+        self.reset(new_game(rules))
         self.seats = {"A": None, "B": None}       # pid, BOT o None
         self.names = {"A": None, "B": None}
         self.player_ids = {"A": None, "B": None}  # chiavi di models.Player
+        self.account_ids = {"A": None, "B": None}  # chiavi di models.Nickname (registrati)
         self.level = level
         self.resigned = None              # chi ha abbandonato
         self.undos = 0
+        self.undone = []                  # mosse annullate: {"t", "moves": [record, ...]}
         self.rated = {}                   # colore -> stelle date
         self.online = {}                  # pid -> connessioni aperte
 
+    def reset(self, state):
+        """Riparte da `state`, senza mosse registrate; le pedine prendono nome da qui."""
+        self.state = state
+        self.log = []                     # (giocatore, mossa, record) in ordine, passi compresi
+        self.turn_start = self.state      # stato all'inizio del turno in corso
+        self.turn_start_log = 0           # len(log) all'inizio del turno in corso
+        self.piece_at = piece_names(state.board)   # cella -> nome della pedina
+        self.pieces = {name: list(c) for c, name in self.piece_at.items()}  # posizioni iniziali
+        self.turn_start_pieces = dict(self.piece_at)
+
     @property
     def mode(self):
-        return "amico" if self.level is None else "computer"
+        return "friend" if self.level is None else "computer"
 
     def elapsed(self):
         return round((timezone.now() - self.started).total_seconds(), 1)
@@ -100,10 +135,11 @@ class Match:
                 return p
         return None
 
-    def sit(self, color, pid, name, player_id=None):
-        self.seats[color], self.names[color], self.player_ids[color] = pid, name, player_id
+    def sit(self, color, pid, name, player_id=None, account_id=None):
+        self.seats[color], self.names[color] = pid, name
+        self.player_ids[color], self.account_ids[color] = player_id, account_id
 
-    def join(self, pid, name=None, player_id=None):
+    def join(self, pid, name=None, player_id=None, account_id=None):
         """Colore di `pid`: il suo posto, o il primo libero se ha un nome; None se guarda
         soltanto. Il secondo valore dice se ha appena preso posto."""
         seat = self.seat_of(pid)
@@ -111,7 +147,7 @@ class Match:
             return seat, False
         for p in ("A", "B"):
             if self.seats[p] is None:
-                self.sit(p, pid, name, player_id)
+                self.sit(p, pid, name, player_id, account_id)
                 return p, True
         return None, False
 
@@ -137,17 +173,17 @@ class Match:
 
     def _check_turn(self, player):
         if player is None:
-            raise MoveError("Stai guardando la partita: non puoi muovere.")
+            raise MoveError("You are watching this game: you can't move.")
         if self.result is not None:
-            raise MoveError("La partita è finita.")
+            raise MoveError("The game is over.")
         if self.state.to_move != player:
-            raise MoveError("Non è il tuo turno.")
+            raise MoveError("It's not your turn.")
 
     def _find_move(self, q, r, d):
         for m in legal_moves(self.state):
             if m is not PASS and (m.q, m.r, m.d) == (q, r, d):
                 return m
-        raise MoveError("Mossa non valida.")
+        raise MoveError("Invalid move.")
 
     def play(self, player, q, r, d):
         """Mossa di un giocatore umano, validata dal motore."""
@@ -156,31 +192,57 @@ class Match:
         self.apply_move(move)
         return move
 
-    def play_bot(self, player, ply, q, r, d):
+    def play_bot(self, player, ply, q, r, d, info=None):
         """Mossa del computer calcolata nel browser di `player` per la semimossa `ply`,
-        validata dal motore. False se arriva in ritardo (la partita è già andata avanti,
-        per esempio l'ha mandata un'altra scheda): si ignora."""
+        validata dal motore; `info` sono le statistiche della ricerca. False se arriva in
+        ritardo (la partita è già andata avanti, per esempio l'ha mandata un'altra
+        scheda): si ignora."""
         if self.level is None or player is None or self.seats[player] == BOT:
-            raise MoveError("Solo chi gioca contro il computer può mandarne le mosse.")
+            raise MoveError("Only the player facing the computer can send its moves.")
         if ply != self.state.ply:
             return False
         if not self.bot_to_move():
-            raise MoveError("Non tocca al computer.")
-        self.apply_move(self._find_move(q, r, d))
+            raise MoveError("It's not the computer's turn.")
+        self.apply_move(self._find_move(q, r, d), clean_bot_info(info))
         return True
 
-    def push(self, move, t=None):
+    def record(self, mover, move, t):
+        """Riga del registro per `move`, giocata ora da `mover`: chi muove, quale pedina,
+        da dove a dove, e quale pedina spinge e dove finisce ("off" se esce dal campo)."""
+        rec = {"ply": self.state.ply, "player": mover, "t": t}
+        if move is PASS:
+            rec["pass"] = True
+            return rec
+        to, pushed_to = move_targets(self.state.geo, move)
+        rec.update(piece=self.piece_at[(move.q, move.r)], **{"from": [move.q, move.r]},
+                   d=move.d, dir=DIR_NAMES[move.d], to=to, push=move.push)
+        if move.push:
+            rec.update(pushed=self.piece_at[tuple(to)], pushed_to=pushed_to)
+        return rec
+
+    def push(self, move, t=None, bot=None):
         """Applica una mossa (già legale) e la registra."""
         mover = self.state.to_move
+        rec = self.record(mover, move, self.elapsed() if t is None else t)
+        if bot:
+            rec["bot"] = bot
         self.state = apply(self.state, move)
-        self.log.append((mover, move, self.elapsed() if t is None else t))
+        if move is not PASS:
+            src, dst = (move.q, move.r), tuple(rec["to"])
+            if move.push:
+                pushed = self.piece_at.pop(dst)
+                if rec["pushed_to"] != "off":
+                    self.piece_at[tuple(rec["pushed_to"])] = pushed
+            self.piece_at[dst] = self.piece_at.pop(src)
+        self.log.append((mover, move, rec))
         if self.state.to_move != mover or self.state.result is not None:
             self.turn_start = self.state
             self.turn_start_log = len(self.log)
+            self.turn_start_pieces = dict(self.piece_at)
 
-    def apply_move(self, move):
+    def apply_move(self, move, bot=None):
         """Applica una mossa legale; poi passa da solo finché chi è di turno non ha mosse."""
-        self.push(move)
+        self.push(move, bot=bot)
         while self.state.result is None and legal_moves(self.state) == [PASS]:
             self.push(PASS)
 
@@ -192,26 +254,29 @@ class Match:
     def undo(self, player):
         """Annulla la prima mossa del turno, finché la seconda non è stata fatta."""
         if not self.can_undo(player):
-            raise MoveError("Non c'è niente da annullare.")
+            raise MoveError("There is nothing to undo.")
+        self.undone.append({"t": self.elapsed(),
+                            "moves": [rec for _, _, rec in self.log[self.turn_start_log:]]})
         self.state = self.turn_start
+        self.piece_at = dict(self.turn_start_pieces)
         del self.log[self.turn_start_log:]
         self.undos += 1
 
     def resign(self, player):
         if player is None:
-            raise MoveError("Stai guardando la partita: non puoi abbandonare.")
+            raise MoveError("You are watching this game: you can't resign.")
         if self.result is not None:
-            raise MoveError("La partita è finita.")
+            raise MoveError("The game is over.")
         self.resigned = player
 
     def check_rating(self, player, stars):
         """Stelle (1-5) valide per un giudizio di `player`; MoveError altrimenti."""
         if player is None or self.seats[player] == BOT:
-            raise MoveError("Solo chi ha giocato può dare un giudizio.")
+            raise MoveError("Only the players can rate the game.")
         if self.result is None:
-            raise MoveError("Il giudizio si dà a partita finita.")
+            raise MoveError("You can rate the game once it is over.")
         if isinstance(stars, bool) or not isinstance(stars, int) or not 1 <= stars <= 5:
-            raise MoveError("Il giudizio va da 1 a 5 stelle.")
+            raise MoveError("The rating goes from 1 to 5 stars.")
         return stars
 
     # --- vista per il browser ---------------------------------------------------------
@@ -238,9 +303,9 @@ class Match:
                 out[p] = {"kind": "computer", "name": f"computer ({LEVELS[self.level][0]})",
                           "online": True}
             elif who is None:
-                out[p] = {"kind": "libero", "name": None, "online": False}
+                out[p] = {"kind": "free", "name": None, "online": False}
             else:
-                out[p] = {"kind": "umano", "name": self.names[p],
+                out[p] = {"kind": "human", "name": self.names[p],
                           "online": self.online.get(who, 0) > 0}
         return out
 
@@ -279,14 +344,15 @@ def new_id():
             return mid
 
 
-def create_match(rules, creator, name, color, level=None, rng=None, player_id=None):
-    """Nuova partita. `color` è 'A', 'B' o 'casuale'; con `level` l'altro posto è del
+def create_match(rules, creator, name, color, level=None, rng=None, player_id=None,
+                 account_id=None):
+    """Nuova partita. `color` è 'A', 'B' o 'random'; con `level` l'altro posto è del
     computer, altrimenti resta libero per chi apre il link."""
     rng = rng or random.Random()
     if color not in ("A", "B"):
         color = rng.choice("AB")
     match = Match(rules, level)
-    match.sit(color, creator, name, player_id)
+    match.sit(color, creator, name, player_id, account_id)
     if level is not None:
         match.seats[other(color)] = BOT
     MATCHES[match.id] = match

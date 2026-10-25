@@ -1,0 +1,19 @@
+Ruleset(R=4, N=5, K=1, goal_wide=False, push_own=True, ko=True, no_pushback=True, push_off=False, moves_per_turn=2, max_plies=200)
+stop50unst(1000) contro mctsd(1000): 200 partite, punteggio 61.5% (±3.4), patte 0
+simulazioni per mossa: media 1648 (1.65 B), mediana 959, min 383, max 3000
+per distanza dal traguardo: mosse, simulazioni medie
+  1:   918     1963
+  2:   952     1465
+  3:   608     1381
+  4:   505     1623
+  5:   424     1786
+  6:   497     1790
+  7:   482     1573
+  8:   100     1322
+per semimossa: mosse, simulazioni medie
+  0-3:   400     1453
+  4-11:   800     1767
+  12-29:  1759     1645
+  30-59:  1337     1633
+  60-200:   190     1692
+(336 s)
