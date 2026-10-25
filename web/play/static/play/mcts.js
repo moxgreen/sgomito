@@ -78,6 +78,9 @@ export class FastGeo {
       if (goalWide) for (const [q, r] of wide[p]) g[this.at(q, r)] = 1;
       this.goal.push(g);
     }
+    // distanza dal traguardo in file (feature della policy)
+    this.dist = [null, Int8Array.from(this.cells, ([, r]) => R - r),
+      Int8Array.from(this.cells, ([, r]) => r + R)];
     this.winDirs = [null];
     for (const p of [A, B]) {
       const goal = this.goal[p];
@@ -376,6 +379,161 @@ export class FastBoard {
   }
 }
 
+// --- policy --------------------------------------------------------------------------
+
+/** Nomi delle feature di una mossa (moveFeatures), dal punto di vista di chi muove.
+ * dist = distanza dal proprio traguardo in file (src prima della mossa, dst dopo);
+ * enemy_* descrive la pedina avversaria spinta; vul = pedine nemiche che possono
+ * spingere la pedina; end_* valgono se la mossa chiude il turno, mid_* se ne resta
+ * un'altra; *_win = qualcuno avrebbe una vittoria immediata dopo la mossa. */
+export const FEATURE_NAMES = [
+  "dir_fwd", "dir_side", "dir_back",
+  ...[1, 2, 3, 4, 5, 6, 7, 8].map((k) => `src_d${k}`),
+  ...[0, 1, 2, 3, 4, 5, 6, 7, 8].map((k) => `dst_d${k}`),
+  "push_own", "push_enemy", "own_pushed_fwd",
+  "enemy_back", "enemy_side", "enemy_fwd", "enemy_d1", "enemy_d2", "enemy_d3p",
+  "adj_enemy", "adj_own", "vul_dst", "vul_src", "loses",
+  "end_opp_win", "end_my_threats", "mid_my_win", "mid_opp_win",
+];
+const F = Object.fromEntries(FEATURE_NAMES.map((name, k) => [name, k]));
+
+/** Pesi della policy, nell'ordine di FEATURE_NAMES: hexpush/policy.py train --install
+ * su results/policy_corpus_js20000.jsonl (100 partite di mcts.js a 20000 simulazioni con
+ * le regole del sito). Valgono per quelle regole (R = 4, N = 5, due mosse per turno). */
+export const PRIOR_WEIGHTS = Float64Array.of(
+  0.5441, -0.2869, -0.7708, -0.5961, -0.1899, 0.5174, 0.8435, 0.8303, 0.4919, -0.1382,
+  -0.9883, 0, 1.2444, 0.2842, -0.7565, -1.1863, -1.2786, -0.9432, -0.3741, 0.4638,
+  0.2295, 0.5882, 0.6951, 0.7391, -0.3268, -0.8848, 0.9513, 1.2691, -0.698, 0.218,
+  0.048, -0.1715, 0.059, -0.4023, -2.4729, 0.4872, 1.8573, -2.654,
+);
+
+/** Pedine di o che potrebbero spingere la pedina in x (legalità semplificata: senza ko
+ * né no_pushback). */
+function pushers(fb, x, o) {
+  const nbr = fb.geo.nbr, board = fb.board;
+  let n = 0;
+  for (let e = 0; e < 6; e++) {
+    const y = nbr[x][e];
+    if (y < 0 || board[y] !== o) continue;
+    const behind = nbr[x][OPPOSITE[e]];
+    if (behind >= 0 && board[behind] === 0) n++;
+  }
+  return n;
+}
+
+/** Mosse di p che vincerebbero subito, contate fino a `cap` (legalità semplificata come
+ * pushers; la pedina in `locked` non muove). */
+function countWins(fb, p, locked, cap) {
+  const g = fb.geo, nbr = g.nbr, goal = g.goal[p], board = fb.board;
+  const need = fb.rules.K - fb.goalCount[p];
+  let n = 0;
+  for (const src of fb.pieces[p]) {
+    if (src === locked) continue;
+    for (const d of g.winDirs[p][src]) {
+      const t = nbr[src][d];
+      let gain = goal[t] - goal[src];
+      if (board[t]) {
+        if (board[t] === p && !fb.rules.push_own) continue;
+        const t2 = nbr[t][d];
+        if (t2 < 0 || board[t2]) continue;
+        if (board[t] === p) gain += goal[t2] - goal[t];
+      }
+      if (gain >= need && ++n >= cap) return n;
+    }
+  }
+  return n;
+}
+
+/** Sposta una pedina solo su campo, pedine e traguardi (senza hash): per provare una
+ * mossa e disfarla in moveFeatures. */
+function shift(fb, frm, to) {
+  const p = fb.board[frm], k = fb.pid[frm], g = fb.geo.goal[p];
+  fb.board[frm] = 0;
+  fb.board[to] = p;
+  fb.pid[to] = k;
+  fb.pieces[p][k] = to;
+  fb.goalCount[p] += g[to] - g[frm];
+}
+
+/** Scrive in f (azzerato) le feature della mossa legale (src, d, kind) di chi muove. */
+function featuresInto(fb, src, d, kind, f) {
+  const p = fb.toMove, o = 3 - p, nbr = fb.geo.nbr, sign = p === A ? 1 : -1;
+  const dr = DIRS[d][1] * sign;
+  f[dr > 0 ? F.dir_fwd : dr < 0 ? F.dir_back : F.dir_side] = 1;
+  const dist = fb.geo.dist;
+  f[F.src_d1 + Math.min(Math.max(dist[p][src], 1), 8) - 1] = 1;
+  const dst = nbr[src][d];
+  f[F.dst_d0 + Math.min(dist[p][dst], 8)] = 1;
+  f[F.vul_src] = pushers(fb, src, o);
+  if (kind >= 2) {
+    if (fb.board[dst] === p) {
+      f[F.push_own] = 1;
+      if (dr > 0) f[F.own_pushed_fwd] = 1;
+    } else {
+      f[F.push_enemy] = 1;
+      // per la pedina avversaria "avanti" è verso la mia casa
+      f[dr > 0 ? F.enemy_back : dr < 0 ? F.enemy_fwd : F.enemy_side] = 1;
+      const ed = dist[o][dst];
+      f[ed <= 1 ? F.enemy_d1 : ed === 2 ? F.enemy_d2 : F.enemy_d3p] = 1;
+    }
+  }
+  // la mossa si prova sul campo e poi si disfa (con push_off su una copia)
+  const t2 = kind === 2 ? nbr[dst][d] : -1;
+  const after = kind === 3 ? fb.copy() : fb;
+  if (kind === 3) after.removePiece(dst);
+  else if (kind === 2) shift(fb, dst, t2);
+  shift(after, src, dst);
+  if (after.goalCount[o] >= fb.rules.K) f[F.loses] = 1;
+  for (const y of nbr[dst]) {
+    if (y < 0) continue;
+    if (after.board[y] === o) f[F.adj_enemy]++;
+    else if (after.board[y] === p && y !== dst) f[F.adj_own]++;
+  }
+  f[F.vul_dst] = pushers(after, dst, o);
+  if (fb.movesLeft === 1) {
+    f[F.end_opp_win] = countWins(after, o, -1, 1);
+    f[F.end_my_threats] = countWins(after, p, -1, 2);
+  } else {
+    f[F.mid_my_win] = countWins(after, p, dst, 1);
+    f[F.mid_opp_win] = countWins(after, o, -1, 1);
+  }
+  if (kind !== 3) {
+    shift(fb, dst, src);
+    if (kind === 2) shift(fb, t2, dst);
+  }
+}
+
+/** Feature di ogni mossa [cella, direzione, tipo] di fb.moves(): un array per mossa,
+ * nell'ordine di FEATURE_NAMES. */
+export function moveFeatures(fb, moves) {
+  return moves.map(([src, d, kind]) => {
+    const f = new Float64Array(FEATURE_NAMES.length);
+    featuresInto(fb, src, d, kind, f);
+    return f;
+  });
+}
+
+const SCRATCH = new Float64Array(FEATURE_NAMES.length);
+
+/** Probabilità della policy per le mosse di fb (softmax di pesi · feature, con
+ * temperatura temp). */
+export function movePriors(fb, moves, weights = PRIOR_WEIGHTS, temp = 1) {
+  const n = moves.length, out = new Float64Array(n), dim = SCRATCH.length;
+  let top = -Infinity;
+  for (let j = 0; j < n; j++) {
+    SCRATCH.fill(0);
+    featuresInto(fb, moves[j][0], moves[j][1], moves[j][2], SCRATCH);
+    let z = 0;
+    for (let k = 0; k < dim; k++) z += weights[k] * SCRATCH[k];
+    out[j] = z / temp;
+    if (out[j] > top) top = out[j];
+  }
+  let sum = 0;
+  for (let j = 0; j < n; j++) sum += (out[j] = Math.exp(out[j] - top));
+  for (let j = 0; j < n; j++) out[j] /= sum;
+  return out;
+}
+
 // --- albero --------------------------------------------------------------------------
 
 /** Nodo dell'albero: solo la mossa che porta qui, le statistiche e lo stato di fine.
@@ -393,17 +551,49 @@ class TreeNode {
     this.value = 0;  // somma dei risultati dal punto di vista di chi ha mosso per arrivare qui
     this.terminal = null;
     this.winMove = null;
+    this.prior = 0;  // probabilità della policy per `move` (solo con prior)
   }
 
-  /** Prepara le mosse del nodo, se la partita non è finita qui. */
-  open(fb, rng) {
+  /** Prepara le mosse del nodo, se la partita non è finita qui. Senza `pw` le mosse
+   * restano da provare in ordine casuale (UCT); con pw = {weights, temp} diventano
+   * subito figli non visitati, ognuno con la sua probabilità della policy (PUCT). */
+  open(fb, rng, pw = null) {
     this.winMove = fb.winningMove();
-    if (this.winMove === null) {
-      this.untried = fb.moves();
-      if (!this.untried.length) this.untried.push(null);
+    if (this.winMove !== null) return;
+    const moves = fb.moves();
+    if (pw === null) {
+      this.untried = moves.length ? moves : [null];
       shuffle(this.untried, rng);
+      return;
     }
+    const priors = moves.length ? movePriors(fb, moves, pw.weights, pw.temp) : [1];
+    if (!moves.length) moves.push(null);
+    this.children = moves.map((m, k) => {
+      const ch = new TreeNode(this, m, fb.toMove);
+      ch.prior = priors[k];
+      return ch;
+    });
   }
+}
+
+/** Figlio da seguire con PUCT: q + cPuct * prior * sqrt(visite del nodo) / (1 + visite),
+ * con q = valore medio per chi muove nel nodo; i figli mai visitati valgono il valore
+ * del nodo meno fpu. */
+function selectPuct(node, cPuct, fpu) {
+  let q0 = 0.5;
+  if (node.visits) {
+    q0 = node.value / node.visits;
+    if (node.mover !== node.children[0].mover) q0 = 1 - q0;
+  }
+  q0 -= fpu;
+  const sq = Math.sqrt(node.visits + 1);
+  let best = null, bestU = -Infinity;
+  for (const ch of node.children) {
+    const q = ch.visits ? ch.value / ch.visits : q0;
+    const u = q + (cPuct * ch.prior * sq) / (1 + ch.visits);
+    if (u > bestU) { best = ch; bestU = u; }
+  }
+  return best;
 }
 
 /** Applica la mossa di un nodo a fb; restituisce il vincitore (1/2) o 0. */
@@ -479,13 +669,15 @@ const toMove = (geo, m) => (m === null ? null : [...geo.cells[m[0]], m[1]]);
  * null. Si scende dalla vecchia radice seguendo la storia della partita, al più
  * REUSE_DEPTH semimosse (le due del turno avversario e una propria). Il vecchio albero si
  * stacca comunque, così la memoria si libera. fresh: radice appena aperta su `s`, per
- * controllare che il nodo trovato abbia le stesse mosse. */
+ * controllare che il nodo trovato abbia le stesse mosse. Un albero UCT non si riusa con
+ * il prior né viceversa (prior: quello della ricerca nuova). */
 const REUSE_DEPTH = 4;
-function reusedRoot(keep, s, geo, fresh) {
+function reusedRoot(keep, s, geo, fresh, prior) {
   const t = keep.tree;
   keep.tree = null;
   const hist = s.history, d = s.ply - t?.ply;
-  if (!t || t.rules !== JSON.stringify(s.rules) || !(d >= 1 && d <= REUSE_DEPTH) ||
+  if (!t || t.prior !== prior || t.rules !== JSON.stringify(s.rules) ||
+      !(d >= 1 && d <= REUSE_DEPTH) ||
       d >= hist.length || geo.hashKey(hist[hist.length - 1 - d]) !== t.key) return null;
   let node = t.root;
   const fb = t.fb.copy();
@@ -504,7 +696,8 @@ function reusedRoot(keep, s, geo, fresh) {
     }
   }
   if (!node || node.terminal !== null || node.winMove !== null ||
-      node.children.length + node.untried.length !== fresh.untried.length) return null;
+      node.children.length + node.untried.length !==
+      fresh.children.length + fresh.untried.length) return null;
   node.parent = null;
   return node;
 }
@@ -519,18 +712,26 @@ function reusedRoot(keep, s, geo, fresh) {
  * keep: oggetto che il chiamante conserva tra una ricerca e l'altra della stessa partita
  * (dello stesso giocatore). Se `s` discende dalla posizione della ricerca precedente, si
  * riparte dal suo sottoalbero: `reused` sono le visite ereditate, e nSim (o il tempo)
- * conta solo le simulazioni nuove. Senza keep ogni ricerca parte da zero (reused 0). */
+ * conta solo le simulazioni nuove. Senza keep ogni ricerca parte da zero (reused 0).
+ * prior: invece di UCT, PUCT con le probabilità della policy (movePriors) come prior;
+ * cPuct, fpu e priorTemp ne sono i parametri, weights sostituisce PRIOR_WEIGHTS.
+ * Spento di default: la ricerca pura è quella della curva a raddoppi. */
 export function search(s, { nSim = 500, timeLimit = null, seed = 0, c = 0.5, decisive = true,
-  playoutLimit = null, policy = null, keep = null } = {}) {
+  playoutLimit = null, policy = null, keep = null, prior = false, cPuct = 2, fpu = 0,
+  priorTemp = 1, weights = null } = {}) {
   const rng = makeRng(seed);
   const rootFb = new FastBoard(s);
   const geo = rootFb.geo;
   const history = historyCounts(geo, s.history);
-  let root = new TreeNode(null, null, 0);
-  root.open(rootFb, rng);
-  const old = keep ? reusedRoot(keep, s, geo, root) : null;
+  const pw = prior ? { weights: weights ? Float64Array.from(weights) : PRIOR_WEIGHTS,
+    temp: priorTemp } : null;
+  // con il prior la radice ha il valore per l'avversario di chi muove, come gli altri nodi
+  let root = new TreeNode(null, null, prior ? 3 - rootFb.toMove : 0);
+  root.open(rootFb, rng, pw);
+  const old = keep ? reusedRoot(keep, s, geo, root, prior) : null;
   if (root.winMove !== null) return { move: toMove(geo, root.winMove) };
-  if (root.untried.length === 1) return { move: toMove(geo, root.untried[0]) };
+  const options = prior ? root.children.map((ch) => ch.move) : root.untried;
+  if (options.length === 1) return { move: toMove(geo, options[0]) };
   if (old) root = old;
   // visite ereditate dai figli (la radice ne ha una in più: il suo primo playout)
   const reused = root.children.reduce((n, ch) => n + ch.visits, 0);
@@ -557,7 +758,18 @@ export function search(s, { nSim = 500, timeLimit = null, seed = 0, c = 0.5, dec
     const path = new Map();
     let node = root;
     // selezione: si scende rigiocando le mosse
-    while (!node.untried.length && node.children.length && node.winMove === null &&
+    while (prior && node.winMove === null && node.terminal === null) {
+      // PUCT: il primo figlio mai visitato che si incontra è l'espansione
+      node = selectPuct(node, cPuct, fpu);
+      const winner = replay(fb, node.move);
+      path.set(fb.key(), (path.get(fb.key()) || 0) + 1);
+      if (node.visits === 0) {
+        node.terminal = terminalValue(fb, winner, history, path);
+        if (node.terminal === null) node.open(fb, rng, pw);
+        break;
+      }
+    }
+    while (!prior && !node.untried.length && node.children.length && node.winMove === null &&
            node.terminal === null) {
       const logN = Math.log(node.visits);
       let best = null, bestU = -1;
@@ -592,9 +804,10 @@ export function search(s, { nSim = 500, timeLimit = null, seed = 0, c = 0.5, dec
     }
   }
   if (keep) keep.tree = { rules: JSON.stringify(s.rules), ply: s.ply, key: rootFb.key(),
-    fb: rootFb, root };
+    fb: rootFb, root, prior };
   return {
-    children: root.children.map((ch) => [toMove(geo, ch.move), ch.visits, ch.value]),
+    children: root.children.filter((ch) => ch.visits)
+      .map((ch) => [toMove(geo, ch.move), ch.visits, ch.value]),
     sims: i,
     reused,
   };

@@ -79,13 +79,14 @@ export class Computer {
    * nSim simulazioni in totale, divise tra i worker; timeLimit secondi (o null),
    * workers un numero o "auto",
    * policy la gestione del tempo (mcts.policyStop) o null: ogni worker la applica al
-   * proprio albero. */
-  async choose(state, { nSim, timeLimit = null, workers = 1, policy = null }) {
+   * proprio albero. prior: ricerca guidata dalla policy appresa (mcts.search), spenta di
+   * default. */
+  async choose(state, { nSim, timeLimit = null, workers = 1, policy = null, prior = false }) {
     const n = workers === "auto" ? defaultWorkers() : workers;
     const seeds = crypto.getRandomValues(new Uint32Array(n));
     const each = Math.ceil(nSim / n);
     const results = await Promise.all(
-      Array.from(seeds, (seed, i) => this.run(i, { state, nSim: each, timeLimit, seed, policy })));
+      Array.from(seeds, (seed, i) => this.run(i, { state, nSim: each, timeLimit, seed, policy, prior })));
     const info = { workers: n, forced: results.some((res) => res.move !== undefined) };
     if (!info.forced) {
       info.sims = results.reduce((s, res) => s + res.sims, 0);

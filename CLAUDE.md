@@ -170,6 +170,8 @@ hexpush/
   simulate.py    # CLI: --R --N --K ... --games --botA --botB --seed, scrive CSV
   sweep.py       # griglia di parametri, chiama simulate, aggrega risultati
   ladder.py      # curva a raddoppi MCTS (docs/curva_raddoppi.md), --against BOT
+  jsbot.py       # bot che cerca con mcts.js in un processo node (jsserver.mjs)
+  policy.py      # policy appresa per il prior di mcts.js: corpus, feature, train, match (docs/policy_prior.md)
   watch.py       # guarda una partita in ASCII
   corpus.py      # partite complete mossa per mossa in JSONL (riprendibile), per le analisi di stile
   strategies.py  # varietà: aperture a meno della simmetria, stili (k-means + silhouette), finali
@@ -180,8 +182,10 @@ tests/
   test_game.py   # mosse legali, spinte, bordo, vittoria, ripetizione
   test_bots.py   # bot, e coerenza tra FastBoard e il motore di riferimento
   test_js_engine.py  # coerenza del motore JS del browser (tests/js/check_engine.mjs, node)
+  test_policy.py     # allenamento della policy
 web/play/static/play/
-  mcts.js        # porting di FastBoard + MCTS: il computer gioca nel browser
+  mcts.js        # porting di FastBoard + MCTS: il computer gioca nel browser; opzione prior (PUCT
+                 # con la policy appresa), spenta di default
   computer.js    # Web Worker paralleli, somma delle visite (come parallel.py)
 ```
 
@@ -283,6 +287,14 @@ uniformemente.
    - **Vantaggio del secondo giocatore ai livelli alti**: A vince 53.2% / 48.5% / 42.5%
      (IC 37-48%) con MCTS 250 / 2000 / 16000. La compensazione della prima mossa singola
      forse è troppo generosa.
+
+9. **Policy appresa come prior** (`docs/policy_prior.md`, `results/policy_*`): regressione
+   logistica su 38 feature locali delle mosse, allenata sulle visite di `mcts.js` a 20000
+   simulazioni, usata come prior PUCT (opzione `prior` di `mcts.js`, spenta di default).
+   Guidato 500 = puro ~5600 (2.5 raddoppi); guidato 2000 contro puro 16000 / 32000 =
+   55% / 51% (4-5 raddoppi). Costo ~1.2-1.4x per simulazione. Verifica indipendente
+   (altro driver, altri seed, 100 partite): 500 guidato contro 2000 puro 78%, 2000 contro
+   8000 74%, 2000 contro 16000 59%.
 
 Articoli (per appassionati, in inglese): `docs/articles/bots.html` (bot e profondità
 statistica, https://claude.ai/artifact/GVAUBRCEUCGpa84nNeSt4E) e `docs/articles/variety.html`

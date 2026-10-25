@@ -3,8 +3,8 @@
 //
 //   node tests/js/check_engine.mjs < casi.json
 
-import { FastBoard, fastGeometry, historyCounts, policyScale, policyStop, replay, search,
-  terminalValue } from "../../web/play/static/play/mcts.js";
+import { FEATURE_NAMES, FastBoard, fastGeometry, historyCounts, moveFeatures, movePriors,
+  policyScale, policyStop, replay, search, terminalValue } from "../../web/play/static/play/mcts.js";
 import { combine } from "../../web/play/static/play/computer.js";
 
 const NAME = [null, "A", "B"];
@@ -94,7 +94,7 @@ function checkGame(c, where) {
 // radice sommano al numero di simulazioni; stesso seme, stesso risultato.
 // Con una gestione del tempo le simulazioni restano tra min e max (e B senza estensione).
 function checkSearch(c, where) {
-  const opts = { nSim: c.n_sim, seed: c.seed, policy: c.policy || null };
+  const opts = { nSim: c.n_sim, seed: c.seed, policy: c.policy || null, ...(c.opts || {}) };
   const res = search(c.state, opts);
   const move = combine([res]);
   check(c.ok.some((m) => sameJson(m, move)), where, "mossa scelta", move, c.ok);
@@ -115,7 +115,7 @@ function checkReuse(c, where) {
   let reusedCount = 0;
   for (const [k, st] of c.steps.entries()) {
     const at = `${where} #${k}`;
-    const res = search(st.state, { nSim: c.n_sim, seed: k, keep });
+    const res = search(st.state, { nSim: c.n_sim, seed: k, keep, ...(c.opts || {}) });
     const legal = st.legal.map((m) => JSON.stringify(m));
     check(legal.includes(JSON.stringify(combine([res]))), at, "mossa scelta", combine([res]), null);
     if (!res.children) continue;
@@ -143,6 +143,41 @@ function checkPolicy(c, where) {
   }
 }
 
+// Feature della policy: i valori attesi (calcolati con game.py) per le mosse elencate,
+// una sola direzione / distanza di partenza / distanza d'arrivo per mossa, e movePriors
+// uguale al softmax di pesi · feature.
+function checkFeatures(c, where) {
+  const fb = new FastBoard(c.state);
+  const moves = fb.moves();
+  const feats = moveFeatures(fb, moves);
+  const named = feats.map((f) => Object.fromEntries(FEATURE_NAMES.map((n, k) => [n, f[k]])));
+  const keys = moves.map(([src, d]) => JSON.stringify([...fb.geo.cells[src], d]));
+  check(FEATURE_NAMES.length === c.n_features, where, "numero di feature", FEATURE_NAMES.length,
+    c.n_features);
+  for (const [k, f] of named.entries()) {
+    for (const prefix of ["dir_", "src_d", "dst_d"]) {
+      const ones = FEATURE_NAMES.filter((n) => n.startsWith(prefix)).reduce((s, n) => s + f[n], 0);
+      check(ones === 1, `${where} ${keys[k]}`, `una sola ${prefix}`, ones, 1);
+    }
+  }
+  for (const e of c.expect) {
+    const k = keys.indexOf(JSON.stringify(e.move));
+    check(k >= 0, where, "mossa presente", e.move, null);
+    if (k < 0) continue;
+    for (const [name, want] of Object.entries(e.values)) {
+      check(named[k][name] === want, `${where} ${keys[k]}`, name, named[k][name], want);
+    }
+  }
+  const w = Float64Array.from(c.weights);
+  const pr = movePriors(fb, moves, w, c.temp);
+  const z = feats.map((f) => f.reduce((s, x, k) => s + x * w[k], 0) / c.temp);
+  const top = Math.max(...z);
+  const tot = z.reduce((s, x) => s + Math.exp(x - top), 0);
+  const ok = z.every((x, j) => Math.abs(Math.exp(x - top) / tot - pr[j]) < 1e-12);
+  check(ok && Math.abs(pr.reduce((a, b) => a + b, 0) - 1) < 1e-12, where, "movePriors",
+    Array.from(pr), z);
+}
+
 let input = "";
 for await (const chunk of process.stdin) input += chunk;
 for (const [n, c] of JSON.parse(input).entries()) {
@@ -151,6 +186,7 @@ for (const [n, c] of JSON.parse(input).entries()) {
   else if (c.kind === "game") checkGame(c, where);
   else if (c.kind === "search") checkSearch(c, where);
   else if (c.kind === "policy") checkPolicy(c, where);
+  else if (c.kind === "features") checkFeatures(c, where);
   else if (c.kind === "reuse") checkReuse(c, where);
   else errors.push({ where, what: "caso sconosciuto" });
 }
