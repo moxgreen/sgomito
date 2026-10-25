@@ -332,7 +332,8 @@ async function playComputer(req) {
   const t0 = performance.now();
   try {
     const { move, info } = await (await computer).choose(req.search,
-      { nSim: req.n_sim, timeLimit: req.time_limit, workers: req.workers, policy: req.policy });
+      { nSim: req.n_sim, timeLimit: req.time_limit, workers: req.workers, policy: req.policy,
+        prior: !!req.prior });
     info.ms = Math.round(performance.now() - t0);  // tempo di ricerca, senza la pausa
     const pause = req.delay * 1000 - (performance.now() - t0);
     if (pause > 0) await new Promise((ok) => setTimeout(ok, pause));

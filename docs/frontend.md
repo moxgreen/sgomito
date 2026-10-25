@@ -90,6 +90,20 @@ senza conoscere la geometria delle regole.
   non ha trovato troppo facile; Esperto (12000) lo era (ottobre 2026). Con 4 alberi sono
   ~3 s per mossa; con un worker solo serve un processore da ~13000 simulazioni al
   secondo per stare sotto il tetto.
+- Livelli a tempo (`t1`, `t2`, `t5`, `t10`; `HEXPUSH_THINK_SECONDS`): chi gioca sceglie i
+  secondi di riflessione per mossa, in media sulla partita. Tutti i core; prior acceso
+  solo se le regole sono quelle su cui è allenato (`matches.PRIOR_RULES`: R=4, N=5, K=1,
+  `ko`, `no_pushback`, due mosse per turno). Dove pensare lo decide la gestione del
+  tempo `THINK_POLICY` (`TimePolicy` di `hexpush/mcts.py`, applicata da ogni worker al
+  suo albero): `phase` dà ×1.3-1.5 a 3-5 file dal traguardo e ×0.5 in apertura
+  (distanza 7-8), `early` ferma la ricerca quando la mossa più visitata non può più
+  essere superata (con margine 0.5), `extend` la allunga fino a ×1.6 quando è instabile
+  (results/thinktime_*). La media la tiene la **banca del tempo** (`think_budget`): il
+  limite di ogni mossa è `secondi × (tempo che resta per pareggiare la media) / secondi`,
+  limitato tra ×0.5 e ×1.4; i secondi spesi vengono da `info.ms` del registro (le mosse
+  obbligate o vincenti non contano), quindi la banca sopravvive a un riavvio. Una mossa
+  dura al più ~3.4 volte la media. Prova nel browser (livello 2 s, Mac a 8 core): 15
+  mosse pensate tra 0.5 e 3.6 s, media 1.89 s.
 - Il bot calcola **nel browser** del giocatore umano, in Web Worker
   (`web/play/static/play/mcts.js`, porting di `hexpush/mcts.py`). Quando tocca al
   computer, lo stato di quel giocatore ha `"thinking": true` e la richiesta

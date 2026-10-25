@@ -14,8 +14,12 @@ import secrets
 from django.conf import settings
 from django.utils import timezone
 
+import dataclasses
+
 from hexpush.board import DIR_NAMES, other
 from hexpush.game import PASS, apply, legal_moves, new_game
+from hexpush.mcts import TimePolicy
+from hexpush.rules import Ruleset
 from hexpush.serialize import move_targets, move_to_dict, search_state_to_dict, state_to_dict
 
 # gestione del tempo del computer (mcts.TimePolicy, in JSON), uguale per tutti i livelli:
@@ -38,6 +42,35 @@ def champion_level():
              "workers": "auto", "policy": TIME_POLICY})
 
 
+# Livelli a tempo: si sceglie quanto pensa il computer per mossa, in media sulla partita.
+# La ricerca è guidata dalla policy appresa (mcts.js, opzione prior) se le regole sono
+# quelle per cui è stata allenata, e usa tutti i core. Dove pensare di più lo decide la
+# gestione del tempo: phase dà più tempo a 3-5 file dal traguardo, dove una ricerca più
+# lunga cambia di più la mossa, e meno in apertura (distanza 7-8);
+# early/extend fermano prima la ricerca quando la mossa è chiara e la allungano quando è
+# instabile (results/thinktime_*, hexpush/thinktime.py). Il tempo risparmiato va in una
+# banca (think_budget) e si spende nelle mosse dopo, così la media resta quella scelta.
+THINK_POLICY = dataclasses.asdict(TimePolicy(early=0.5, extend=0.5, max_factor=1.6,
+                                             phase=(0.7, 0.9, 1.3, 1.5, 1.3, 0.8, 0.5)))
+THINK_RANGE = (0.5, 1.4)  # fattore del limite di tempo secondo la banca, al più
+PRIOR_RULES = Ruleset(ko=True, no_pushback=True, moves_per_turn=2)  # regole del prior
+
+
+def think_level(seconds):
+    return (f"~{seconds:g} s/move", f"thinks about {seconds:g} s per move",
+            {"n_sim": 10**7, "think": seconds, "workers": "auto", "policy": THINK_POLICY})
+
+
+def think_budget(seconds, used):
+    """Limite di tempo per la prossima mossa pensata dal computer, perché la media resti
+    `seconds`: used sono i secondi delle mosse pensate finora (non quelle obbligate o
+    vincenti, che non costano nulla). La banca è il tempo che resta per pareggiare la
+    media contando anche questa mossa; si spende a poco a poco (THINK_RANGE)."""
+    bank = seconds * (len(used) + 1) - sum(used)
+    lo, hi = THINK_RANGE
+    return round(seconds * min(max(bank / seconds, lo), hi), 3)
+
+
 # chiave -> (nome, descrizione, parametri della ricerca nel browser: simulazioni in
 # totale, limite in secondi, alberi paralleli). Vedi static/play/computer.js.
 LEVELS = {
@@ -45,8 +78,11 @@ LEVELS = {
     "medium": mcts_level("Medium", 1000),
     "hard": mcts_level("Hard", 4000),
     "expert": mcts_level("Expert", 12000),
+    **{f"t{s:g}": think_level(s) for s in settings.HEXPUSH_THINK_SECONDS},
+    # non più nel menu (sostituito dai livelli a tempo): resta per le partite salvate
     "champion": champion_level(),
 }
+MENU = [k for k in LEVELS if k != "champion"]
 BOT = "computer"  # nei posti, al posto dell'identificativo di un giocatore umano
 NAME_MAX = 30
 # statistiche della ricerca che il browser manda con ogni mossa del computer
@@ -309,11 +345,25 @@ class Match:
                           "online": self.online.get(who, 0) > 0}
         return out
 
+    def think_used(self):
+        """Secondi di ricerca delle mosse pensate dal computer finora (registro "bot":
+        si escludono quelle obbligate o vincenti)."""
+        return [rec["bot"]["ms"] / 1000 for _, _, rec in self.log
+                if rec.get("bot") and not rec["bot"].get("forced")
+                and isinstance(rec["bot"].get("ms"), (int, float))]
+
     def bot_request(self):
         """Ciò che serve al browser per calcolare la mossa del computer: parametri del
-        livello, pausa minima, semimossa a cui risponde e stato completo."""
-        return dict(LEVELS[self.level][2], ply=self.state.ply,
-                    delay=settings.HEXPUSH_BOT_DELAY, search=search_state_to_dict(self.state))
+        livello, pausa minima, semimossa a cui risponde e stato completo. Per i livelli a
+        tempo il limite di questa mossa viene dalla banca del tempo (think_budget), e il
+        prior si accende solo con le regole su cui è allenato."""
+        req = dict(LEVELS[self.level][2], ply=self.state.ply,
+                   delay=settings.HEXPUSH_BOT_DELAY, search=search_state_to_dict(self.state))
+        seconds = req.pop("think", None)
+        if seconds is not None:
+            req["time_limit"] = think_budget(seconds, self.think_used())
+            req["prior"] = self.rules == PRIOR_RULES
+        return req
 
     def view(self, you):
         d = state_to_dict(self.state)

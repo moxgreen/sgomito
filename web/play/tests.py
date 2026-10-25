@@ -16,7 +16,7 @@ from hexweb.asgi import application
 
 from . import records
 from .consumers import NOT_FOUND, PID_COOKIE
-from .matches import BOT, MATCHES
+from .matches import BOT, LEVELS, MATCHES, THINK_POLICY, think_budget
 from .models import Game, Nickname, Player, Rating
 
 RULES = Ruleset(ko=True, no_pushback=True, moves_per_turn=2)
@@ -464,7 +464,23 @@ class ViewTests(TestCase):
         self.assertEqual((req["n_sim"], req["workers"], req["time_limit"]),
                          (settings.HEXPUSH_CHAMPION_SIMS, "auto",
                           settings.HEXPUSH_CHAMPION_MAX_SECONDS))
-        self.assertContains(self.client.get("/"), "Champion (")
+        # non più nel menu, sostituito dai livelli a tempo; le partite salvate restano
+        self.assertNotContains(self.client.get("/"), "Champion (")
+
+    def test_create_think_match(self):
+        self.pid()
+        home = self.client.get("/")
+        for s in settings.HEXPUSH_THINK_SECONDS:
+            self.assertContains(home, f'value="t{s:g}"')
+        self.assertContains(home, "Thinks about 5 s per move")
+        resp = self.client.post("/new/", {"mode": "computer", "color": "B", "level": "t5",
+                                          "name": "Ada"})
+        match = MATCHES[resp.url.rstrip("/").split("/")[-1]]
+        req = match.bot_request()
+        self.assertEqual((req["workers"], req["time_limit"], req["prior"], req["policy"]),
+                         ("auto", 5.0, True, THINK_POLICY))
+        self.assertNotIn("think", req)
+        self.assertEqual(match.players()["A"]["name"], "computer (~5 s/move)")
 
     def test_unknown_level(self):
         resp = self.client.post("/new/", {"mode": "computer", "level": "god", "name": "Ada"})
@@ -522,6 +538,57 @@ class ViewTests(TestCase):
 
 
 @override_settings(PASSWORD_HASHERS=["django.contrib.auth.hashers.MD5PasswordHasher"])
+class ThinkTimeTests(TestCase):
+    """Livelli a tempo: banca del tempo e prior solo con le regole su cui è allenato."""
+
+    def test_budget(self):
+        self.assertEqual(think_budget(5, []), 5.0)
+        self.assertEqual(think_budget(5, [4.0]), 6.0)        # 1 s risparmiato
+        self.assertEqual(think_budget(5, [1.0, 1.0]), 7.0)   # banca 13 s, al più 1.4 x 5
+        self.assertEqual(think_budget(5, [9.0]), 2.5)        # in debito, almeno 0.5 x 5
+        self.assertEqual(think_budget(2, [2.5, 1.5]), 2.0)   # media esatta
+
+    def bot_moves(self, match, infos):
+        """Fa giocare al computer (A) e all'umano (B) mosse legali; `infos` sono le
+        statistiche mandate dal browser per ogni mossa del computer."""
+        infos = list(infos)
+        while infos:
+            if match.bot_to_move():
+                m = legal_moves(match.state)[0]
+                match.play_bot("B", match.state.ply, m.q, m.r, m.d, infos.pop(0))
+            else:
+                m = legal_moves(match.state)[0]
+                match.play("B", m.q, m.r, m.d)
+
+    def test_bank_follows_the_recorded_times(self):
+        match = make_match("B", "t2")
+        self.assertEqual(match.bot_request()["time_limit"], 2.0)
+        self.bot_moves(match, [{"ms": 500, "workers": 4},          # 1.5 s risparmiati
+                               {"ms": 3, "forced": True}])         # obbligata: non conta
+        self.assertEqual(match.think_used(), [0.5])
+        self.assertEqual(match.bot_request()["time_limit"], 2.8)    # 3.5 s, al più 1.4 x 2
+        self.bot_moves(match, [{"ms": 4000}])
+        self.assertEqual(match.bot_request()["time_limit"], 1.5)    # 6 - 4.5 = 1.5
+
+    def test_bank_survives_a_restart(self):
+        match = make_match("B", "t2")
+        self.bot_moves(match, [{"ms": 500}])
+        records.save_match(match)
+        MATCHES.clear()
+        again = records.find_match(match.id)
+        self.assertEqual(again.think_used(), [0.5])
+
+    def test_prior_only_with_the_trained_rules(self):
+        self.assertTrue(make_match("B", "t1").bot_request()["prior"])
+        variant = Ruleset(R=4, N=4, ko=True, no_pushback=True, moves_per_turn=2)
+        self.assertFalse(make_match("B", "t1", rules=variant, pid="p2").bot_request()["prior"])
+        self.assertNotIn("prior", make_match("B", "expert", pid="p3").bot_request())
+
+    def test_levels(self):
+        self.assertEqual(LEVELS["t10"][2]["workers"], "auto")
+        self.assertIn("champion", LEVELS)
+
+
 class NicknameTests(TestCase):
     def setUp(self):
         MATCHES.clear()

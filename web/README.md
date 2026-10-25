@@ -62,7 +62,8 @@ Variabili d'ambiente: `HEXPUSH_SECRET_KEY`, `HEXPUSH_DEBUG` (default `1`),
 `HEXPUSH_HOSTS`, `HEXPUSH_DB` (file SQLite, default `web/db.sqlite3`), `HEXPUSH_BOT_DELAY`
 (pausa minima in secondi prima di ogni mossa del computer, default `0.7`) e
 `HEXPUSH_CHAMPION_SIMS` / `HEXPUSH_CHAMPION_MAX_SECONDS` (simulazioni per mossa del
-livello Campione, in totale su tutti i worker, default `192000`, e tetto in secondi, default `15`).
+livello Campione, in totale su tutti i worker, default `192000`, e tetto in secondi, default `15`),
+`HEXPUSH_THINK_SECONDS` (secondi medi per mossa dei livelli a tempo, default `1,2,5,10`).
 
 I livelli Facile, Medio, Difficile ed Esperto hanno un numero fisso di simulazioni
 (200, 1000, 4000, 12000): la forza è la stessa su qualunque dispositivo e cambia solo
@@ -75,6 +76,13 @@ albero solo è anzi un po' più forte: 4 alberi da 1000 valgono circa uno da 300
 tetto di tempo scatta solo sui dispositivi lenti, e lì il livello si indebolisce.
 Ogni worker riparte dal sottoalbero della sua ricerca precedente quando la posizione ne
 discende (di solito ~20-25% di simulazioni in più, gratis): vale per tutti i livelli.
+
+Nel menu, oltre ai quattro livelli a forza fissa, chi gioca sceglie quanto pensa il
+computer: 1, 2, 5 o 10 secondi per mossa **in media sulla partita**. Questi livelli usano
+tutti i core e, con le regole standard, la ricerca guidata dalla policy appresa (`prior`
+di `mcts.js`, `docs/policy_prior.md`); con le varianti la ricerca è quella pura. La forza
+quindi dipende dal dispositivo. Campione non è più nel menu: resta solo per le partite
+salvate.
 
 ## Test
 

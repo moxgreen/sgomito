@@ -34,8 +34,12 @@
       <h2>Play against the computer</h2>
       <label>Difficulty
         <select name="level">
-          {% for key, name, desc in levels %}
-          <option value="{{ key }}" {% if v.level == key %}selected{% endif %}>{{ name }} ({{ desc }})</option>
+          {% for group, options in level_groups %}
+          <optgroup label="{{ group }}">
+            {% for key, label in options %}
+            <option value="{{ key }}" {% if v.level == key %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </optgroup>
           {% endfor %}
         </select>
       </label>

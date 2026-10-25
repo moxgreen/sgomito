@@ -57,3 +57,8 @@ HEXPUSH_BOT_DELAY = float(os.environ.get("HEXPUSH_BOT_DELAY", "0.7"))
 # due core), e tetto in secondi per i dispositivi lenti
 HEXPUSH_CHAMPION_SIMS = int(os.environ.get("HEXPUSH_CHAMPION_SIMS", "192000"))
 HEXPUSH_CHAMPION_MAX_SECONDS = float(os.environ.get("HEXPUSH_CHAMPION_MAX_SECONDS", "15"))
+# livelli a tempo: secondi di riflessione per mossa, in media sulla partita, tra cui sceglie
+# chi gioca (il computer pensa meno in apertura e quando la mossa è chiara, di più dove
+# conta, e recupera il tempo risparmiato)
+HEXPUSH_THINK_SECONDS = [float(x) for x in
+                         os.environ.get("HEXPUSH_THINK_SECONDS", "1,2,5,10").split(",")]

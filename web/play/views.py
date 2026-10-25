@@ -11,7 +11,7 @@ from hexpush.rules import Ruleset
 
 from . import records
 from .consumers import PID_COOKIE
-from .matches import LEVELS
+from .matches import LEVELS, MENU
 from .models import Game, Rating
 
 COLORS = (("A", "Orange (moves first)"), ("B", "Blue"), ("random", "Random"))
@@ -41,7 +41,11 @@ def home(request, error=None, values=None, status=200):
     pid = player_id(request)
     player = records.get_player(pid)
     context = {
-        "levels": [(k, name, desc) for k, (name, desc, _) in LEVELS.items()],
+        "level_groups": [
+            ("Fixed strength", [(k, f"{LEVELS[k][0]} ({LEVELS[k][1]})") for k in MENU
+                                if "think" not in LEVELS[k][2]]),
+            ("Thinking time, on average (uses all cores)",
+             [(k, LEVELS[k][1].capitalize()) for k in MENU if "think" in LEVELS[k][2]])],
         "colors": COLORS,
         "v": values or {**DEFAULTS, "color": "random", "level": "medium",
                         "name": player.name if player else ""},
