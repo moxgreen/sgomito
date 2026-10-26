@@ -18,13 +18,15 @@ SERVER = Path(__file__).resolve().parent / "jsserver.mjs"
 
 
 class JsEngine:
-    """Un processo node con mcts.js, riusato per tutte le richieste."""
+    """Un processo node con mcts.js (o con la copia in `path`), riusato per tutte le
+    richieste."""
 
-    def __init__(self):
+    def __init__(self, path=None):
         node = shutil.which("node")
         if node is None:
             raise RuntimeError("serve node (>= 22) per il motore JavaScript")
-        self.proc = subprocess.Popen([node, str(SERVER)], stdin=subprocess.PIPE,
+        cmd = [node, str(SERVER)] + ([str(path)] if path else [])
+        self.proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                      stdout=subprocess.PIPE, text=True, bufsize=1)
         atexit.register(self.close)
 
@@ -48,15 +50,15 @@ class JsEngine:
             self.proc.wait()
 
 
-_ENGINE = None
+_ENGINES = {}
 
 
-def engine():
-    """Il processo node di questo processo Python (uno per processo del pool)."""
-    global _ENGINE
-    if _ENGINE is None:
-        _ENGINE = JsEngine()
-    return _ENGINE
+def engine(path=None):
+    """Il processo node di questo processo Python (uno per processo del pool e per copia
+    di mcts.js; path None = quella del sito)."""
+    if path not in _ENGINES:
+        _ENGINES[path] = JsEngine(path)
+    return _ENGINES[path]
 
 
 def to_move(state, m):
@@ -68,12 +70,14 @@ def to_move(state, m):
 
 class JsBot:
     """MCTS di mcts.js (mosse decisive, c = 0.5 come mctsd) con n_sim simulazioni e un
-    albero solo; opts va a search() così com'è (per esempio prior=True).
+    albero solo; opts va a search() così com'è (per esempio prior=True). js: un'altra
+    copia di mcts.js (JsEngine), di default quella del sito.
     Dopo choose(): last_stats come MCTSBot, last_children con le visite della radice
     ([[q, r, d], visite, valore] o None se la mossa era obbligata o vincente), last_ms."""
 
-    def __init__(self, rng, n_sim=2000, **opts):
+    def __init__(self, rng, n_sim=2000, js=None, **opts):
         self.rng = rng
+        self.js = js
         self.n_sim = n_sim
         self.opts = opts
         self.last_stats = self.last_children = None
@@ -83,7 +87,7 @@ class JsBot:
     def choose(self, state):
         self.last_stats = self.last_children = None
         seed = self.rng.getrandbits(32)
-        res = engine().search(state, nSim=self.n_sim, seed=seed, **self.opts)
+        res = engine(self.js).search(state, nSim=self.n_sim, seed=seed, **self.opts)
         self.last_ms = res["ms"]
         if "move" in res:
             self.last_sims = 0

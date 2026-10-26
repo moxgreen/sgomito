@@ -1,0 +1,32 @@
+Nuovo prior contro il prior di mcts.js 5e377a8 (base), stesse simulazioni, 200 partite per riga.
+Pesi: <variante>_pesi.json; feature nuove: feature_ricche.patch. Vedi docs/policy_prior.md.
+
+== lineare_ricche
+   guidato     contro    n    V    S    P   punti    Elo        IC 95% semim. us/sim g. us/sim c. costo
+   jsp:500   base:500  200  102   98    0   51.0%     +7    -41..  +56   46.4      73.0      49.5  1.49
+  jsp:2000  base:2000  200   95  105    0   47.5%    -17    -66..  +31   50.6      95.9      63.2  1.54
+
+== coppie_ricche
+   guidato     contro    n    V    S    P   punti    Elo        IC 95% semim. us/sim g. us/sim c. costo
+   jsp:500   base:500  200  137   63    0   68.5%   +135    +86.. +190   47.2      79.3      46.6  1.70
+  jsp:2000  base:2000  200  117   83    0   58.5%    +60    +12.. +110   50.3      84.1      49.8  1.70
+
+== coppie
+   guidato     contro    n    V    S    P   punti    Elo        IC 95% semim. us/sim g. us/sim c. costo
+   jsp:500   base:500  200  117   83    0   58.5%    +60    +12.. +110   44.2      46.9      43.7  1.08
+  jsp:2000  base:2000  200  117   83    0   58.5%    +60    +12.. +110   51.0      47.1      44.2  1.07
+
+== guidato
+   guidato     contro    n    V    S    P   punti    Elo        IC 95% semim. us/sim g. us/sim c. costo
+   jsp:500   base:500  200  131   69    0   65.5%   +111    +63.. +165   41.4      54.9      54.8  1.00
+  jsp:2000  base:2000  200  140   60    0   70.0%   +147    +97.. +204   47.3      42.8      42.6  0.99
+
+== guidato_coppie
+   guidato     contro    n    V    S    P   punti    Elo        IC 95% semim. us/sim g. us/sim c. costo
+   jsp:500   base:500  200  157   43    0   78.5%   +225   +171.. +291   42.4      44.3      41.3  1.08
+  jsp:2000  base:2000  200  150   49    1   75.2%   +193   +141.. +255   47.9      55.3      52.0  1.08
+
+== guidato_coppie_ricche
+   guidato     contro    n    V    S    P   punti    Elo        IC 95% semim. us/sim g. us/sim c. costo
+   jsp:500   base:500  200  159   41    0   79.5%   +235   +181.. +303   43.5      57.6      40.5  1.44
+  jsp:2000  base:2000  200  146   54    0   73.0%   +173   +122.. +232   48.9      73.4      48.3  1.47

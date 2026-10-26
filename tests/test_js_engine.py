@@ -16,7 +16,9 @@ from pathlib import Path
 from hexpush.board import DIRS, OPPOSITE, geometry, other
 from hexpush.bots import winning_replies
 from hexpush.game import PASS, apply, from_board, immediate_outcomes, legal_moves, new_game
+from hexpush.jsbot import JsEngine
 from hexpush.mcts import POLICIES, FastBoard, MCTSDecisiveBot, TimePolicy
+from hexpush.policy import dense_weights
 from hexpush.rules import Ruleset
 from hexpush.serialize import cell_list, key_to_list, search_state_to_dict
 
@@ -145,6 +147,21 @@ class TestJsEngine(unittest.TestCase):
                                          seed=s.ply))
             s = apply(s, rng.choice(legal_moves(s)))
         self.assert_node_ok(cases)
+
+    def test_installed_weights(self):
+        """PRIOR_WEIGHTS di mcts.js sono quelli di results/policy_weights_jsp20000.json
+        (train --pairs --install), nella disposizione di dense_weights."""
+        eng = JsEngine()
+        try:
+            installed = eng.request(op="weights")["weights"]
+            names = eng.request(op="names")["names"]
+        finally:
+            eng.close()
+        with open(ROOT / "results" / "policy_weights_jsp20000.json") as f:
+            want = dense_weights(json.load(f), names)
+        self.assertEqual(len(installed), len(want))
+        for x, y in zip(installed, want):
+            self.assertAlmostEqual(x, y, places=12)
 
     def test_tree_reuse(self):
         """Ricerche con lo stesso keep lungo partite casuali (una e due mosse per turno):
@@ -309,11 +326,12 @@ class TestJsPrior(unittest.TestCase):
                             values = reference_features(s, m)
                             seen.update(k for k, v in values.items() if v)
                             expect.append({"move": mv(m), "values": values})
+                        # pesi a caso, metà delle volte anche per le coppie di feature
+                        dim = N_FEATURES * (1 + N_FEATURES * (g % 2))
                         cases.append({"kind": "features", "label": f"{rules} ply {s.ply}",
                                       "state": search_state_to_dict(s), "expect": expect,
                                       "n_features": N_FEATURES,
-                                      "weights": [rng.uniform(-2, 2)
-                                                  for _ in range(N_FEATURES)],
+                                      "weights": [rng.uniform(-2, 2) for _ in range(dim)],
                                       "temp": rng.choice([0.5, 1, 2])})
                     s = apply(s, rng.choice(legal_moves(s)))
         # le minacce devono comparire davvero nelle posizioni controllate
@@ -321,6 +339,21 @@ class TestJsPrior(unittest.TestCase):
                          "push_enemy", "enemy_d1", "own_pushed_fwd", "vul_dst"} <= seen,
                         seen)
         self.assert_node_ok(cases)
+
+    def test_installed_weights(self):
+        """PRIOR_WEIGHTS di mcts.js sono quelli di results/policy_weights_jsp20000.json
+        (train --pairs --install), nella disposizione di dense_weights."""
+        eng = JsEngine()
+        try:
+            installed = eng.request(op="weights")["weights"]
+            names = eng.request(op="names")["names"]
+        finally:
+            eng.close()
+        with open(ROOT / "results" / "policy_weights_jsp20000.json") as f:
+            want = dense_weights(json.load(f), names)
+        self.assertEqual(len(installed), len(want))
+        for x, y in zip(installed, want):
+            self.assertAlmostEqual(x, y, places=12)
 
     def test_tree_reuse(self):
         """Riuso dell'albero (keep) con il prior, come TestJsEngine.test_tree_reuse; un

@@ -145,7 +145,7 @@ function checkPolicy(c, where) {
 
 // Feature della policy: i valori attesi (calcolati con game.py) per le mosse elencate,
 // una sola direzione / distanza di partenza / distanza d'arrivo per mossa, e movePriors
-// uguale al softmax di pesi · feature.
+// uguale al softmax di pesi · feature (più i pesi delle coppie, se weights ne ha).
 function checkFeatures(c, where) {
   const fb = new FastBoard(c.state);
   const moves = fb.moves();
@@ -170,7 +170,16 @@ function checkFeatures(c, where) {
   }
   const w = Float64Array.from(c.weights);
   const pr = movePriors(fb, moves, w, c.temp);
-  const z = feats.map((f) => f.reduce((s, x, k) => s + x * w[k], 0) / c.temp);
+  const dim = FEATURE_NAMES.length;
+  const z = feats.map((f) => {
+    let s = 0;
+    for (let a = 0; a < dim; a++) {
+      s += f[a] * w[a];
+      if (w.length === dim) continue;
+      for (let b = a + 1; b < dim; b++) s += f[a] * f[b] * w[dim + a * dim + b];
+    }
+    return s / c.temp;
+  });
   const top = Math.max(...z);
   const tot = z.reduce((s, x) => s + Math.exp(x - top), 0);
   const ok = z.every((x, j) => Math.abs(Math.exp(x - top) / tot - pr[j]) < 1e-12);

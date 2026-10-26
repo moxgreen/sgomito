@@ -1,0 +1,174 @@
+--- a/web/play/static/play/mcts.js	2026-10-26 06:52:03
++++ b/web/play/static/play/mcts.js	2026-10-26 06:52:03
+@@ -81,6 +81,13 @@
+     // distanza dal traguardo in file (feature della policy)
+     this.dist = [null, Int8Array.from(this.cells, ([, r]) => R - r),
+       Int8Array.from(this.cells, ([, r]) => r + R)];
++    // direzioni in avanti (verso il traguardo) di A e di B, distanze esagonali tra celle
++    this.fwd = [null, [2, 5], [3, 4]];
++    this.hex = new Int8Array(this.n * this.n);
++    this.cells.forEach(([q1, r1], a) => this.cells.forEach(([q2, r2], b) => {
++      this.hex[a * this.n + b] = (Math.abs(q1 - q2) + Math.abs(r1 - r2) +
++        Math.abs(q1 + r1 - q2 - r2)) / 2;
++    }));
+     this.winDirs = [null];
+     for (const p of [A, B]) {
+       const goal = this.goal[p];
+@@ -394,6 +401,8 @@
+   "enemy_back", "enemy_side", "enemy_fwd", "enemy_d1", "enemy_d2", "enemy_d3p",
+   "adj_enemy", "adj_own", "vul_dst", "vul_src", "loses",
+   "end_opp_win", "end_my_threats", "mid_my_win", "mid_opp_win",
++  "opp_run2", "opp_run3", "my_run2", "block_lead", "lead_near1", "lead_near2",
++  "mid_opp_wins2", "my_lead", "lead_fwd", "mid_lost",
+ ];
+ const F = Object.fromEntries(FEATURE_NAMES.map((name, k) => [name, k]));
+ 
+@@ -544,8 +553,69 @@
+     }
+   }
+   return n;
++}
++
++/** Cammini liberi verso il traguardo delle pedine di p a distanza `depth` (2 o 3) dal
++ * traguardo: una per ogni prima cella libera in avanti da cui si arriva in avanti, per
++ * celle libere, a una cella libera del traguardo. Contati fino a `cap`. */
++function runners(fb, p, depth, cap) {
++  const g = fb.geo, nbr = g.nbr, board = fb.board, goal = g.goal[p], dist = g.dist[p];
++  const [e0, e1] = g.fwd[p];
++  let n = 0;
++  for (const x of fb.pieces[p]) {
++    if (dist[x] !== depth) continue;
++    if (openPath(nbr, board, goal, nbr[x][e0], depth - 1, e0, e1) && ++n >= cap) return n;
++    if (openPath(nbr, board, goal, nbr[x][e1], depth - 1, e0, e1) && ++n >= cap) return n;
++  }
++  return n;
++}
++
++/** La cella t è libera e da lì, in `left` passi in avanti (direzioni e0, e1) per celle
++ * libere, si arriva a una cella libera del traguardo. */
++function openPath(nbr, board, goal, t, left, e0, e1) {
++  if (t < 0 || board[t]) return false;
++  if (left === 0) return goal[t] === 1;
++  return openPath(nbr, board, goal, nbr[t][e0], left - 1, e0, e1) ||
++    openPath(nbr, board, goal, nbr[t][e1], left - 1, e0, e1);
++}
++
++/** Con la prima mossa del turno già giocata (la pedina in `locked` è ferma): true se
++ * nessuna seconda mossa di p lascia l'avversario senza vittorie immediate (legalità
++ * semplificata come pushers; una seconda mossa che vince salva). */
++function noParry(fb, p, locked) {
++  const o = 3 - p, nbr = fb.geo.nbr, board = fb.board, K = fb.rules.K;
++  const mine = fb.pieces[p].slice();
++  for (const src of mine) {
++    if (src === locked) continue;
++    for (let d = 0; d < 6; d++) {
++      const t = nbr[src][d];
++      if (t < 0) continue;
++      let t2 = -1;
++      if (board[t]) {
++        if (board[t] === p && !fb.rules.push_own) continue;
++        t2 = nbr[t][d];
++        if (t2 < 0 || board[t2]) continue;
++        shift(fb, t, t2);
++      }
++      shift(fb, src, t);
++      const safe = fb.goalCount[p] >= K ||
++        (fb.goalCount[o] < K && countWins(fb, o, -1, 1) === 0);
++      shift(fb, t, src);
++      if (t2 >= 0) shift(fb, t2, t);
++      if (safe) return false;
++    }
++  }
++  return true;
+ }
+ 
++/** Distanza dal traguardo della pedina più avanzata di p. */
++function leadDist(fb, p) {
++  const dist = fb.geo.dist[p];
++  let best = 99;
++  for (const x of fb.pieces[p]) if (dist[x] < best) best = dist[x];
++  return best;
++}
++
+ /** Sposta una pedina solo su campo, pedine e traguardi (senza hash): per provare una
+  * mossa e disfarla in moveFeatures. */
+ function shift(fb, frm, to) {
+@@ -557,8 +627,9 @@
+   fb.goalCount[p] += g[to] - g[frm];
+ }
+ 
+-/** Scrive in f (azzerato) le feature della mossa legale (src, d, kind) di chi muove. */
+-function featuresInto(fb, src, d, kind, f) {
++/** Scrive in f (azzerato) le feature della mossa legale (src, d, kind) di chi muove;
++ * mine = leadDist(fb, fb.toMove), uguale per tutte le mosse. */
++function featuresInto(fb, src, d, kind, f, mine) {
+   const p = fb.toMove, o = 3 - p, nbr = fb.geo.nbr, sign = p === A ? 1 : -1;
+   const dr = DIRS[d][1] * sign;
+   f[dr > 0 ? F.dir_fwd : dr < 0 ? F.dir_back : F.dir_side] = 1;
+@@ -567,6 +638,10 @@
+   const dst = nbr[src][d];
+   f[F.dst_d0 + Math.min(dist[p][dst], 8)] = 1;
+   f[F.vul_src] = pushers(fb, src, o);
++  if (dist[p][src] === mine) {
++    f[F.my_lead] = 1;
++    if (dr > 0) f[F.lead_fwd] = 1;
++  }
+   if (kind >= 2) {
+     if (fb.board[dst] === p) {
+       f[F.push_own] = 1;
+@@ -597,8 +672,28 @@
+     f[F.end_my_threats] = countWins(after, p, -1, 2);
+   } else {
+     f[F.mid_my_win] = countWins(after, p, dst, 1);
+-    f[F.mid_opp_win] = countWins(after, o, -1, 1);
++    const threats = countWins(after, o, -1, 2);
++    if (threats) {
++      f[F.mid_opp_win] = 1;
++      if (threats >= 2) f[F.mid_opp_wins2] = 1;
++      if (!f[F.mid_my_win] && !f[F.loses] && noParry(after, p, dst)) f[F.mid_lost] = 1;
++    }
+   }
++  f[F.opp_run2] = runners(after, o, 2, 3);
++  f[F.opp_run3] = runners(after, o, 3, 3);
++  f[F.my_run2] = runners(after, p, 2, 3);
++  // la pedina avversaria più avanzata (dopo la mossa): quanto le sono vicino, e le pedine
++  // avversarie vicine al traguardo di cui occupo una cella in avanti
++  const g = fb.geo, odist = g.dist[o], [e0, e1] = g.fwd[o], hex = g.hex, row = dst * g.n;
++  let lead = 99, near = 99;
++  for (const x of after.pieces[o]) {
++    const dx = odist[x];
++    if (dx < lead) { lead = dx; near = hex[row + x]; }
++    else if (dx === lead && hex[row + x] < near) near = hex[row + x];
++    if (dx <= 3 && (nbr[x][e0] === dst || nbr[x][e1] === dst)) f[F.block_lead]++;
++  }
++  if (near === 1) f[F.lead_near1] = 1;
++  else if (near === 2) f[F.lead_near2] = 1;
+   if (kind !== 3) {
+     shift(fb, dst, src);
+     if (kind === 2) shift(fb, t2, dst);
+@@ -608,9 +703,10 @@
+ /** Feature di ogni mossa [cella, direzione, tipo] di fb.moves(): un array per mossa,
+  * nell'ordine di FEATURE_NAMES. */
+ export function moveFeatures(fb, moves) {
++  const mine = leadDist(fb, fb.toMove);
+   return moves.map(([src, d, kind]) => {
+     const f = new Float64Array(FEATURE_NAMES.length);
+-    featuresInto(fb, src, d, kind, f);
++    featuresInto(fb, src, d, kind, f, mine);
+     return f;
+   });
+ }
+@@ -624,11 +720,11 @@
+  * weights[dim + a * dim + b] e moltiplica f[a] * f[b]. */
+ export function movePriors(fb, moves, weights = PRIOR_WEIGHTS, temp = 1) {
+   const n = moves.length, out = new Float64Array(n), dim = SCRATCH.length;
+-  const pairs = weights.length > dim;
++  const pairs = weights.length > dim, mine = leadDist(fb, fb.toMove);
+   let top = -Infinity;
+   for (let j = 0; j < n; j++) {
+     SCRATCH.fill(0);
+-    featuresInto(fb, moves[j][0], moves[j][1], moves[j][2], SCRATCH);
++    featuresInto(fb, moves[j][0], moves[j][1], moves[j][2], SCRATCH, mine);
+     let z = 0, nz = 0;
+     for (let k = 0; k < dim; k++) {
+       const x = SCRATCH[k];

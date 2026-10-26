@@ -5,10 +5,18 @@
 //   {"op": "features", "state": ...}              -> {"moves": [[q, r, d], ...],
 //                                                    "features": [[...], ...]}
 //   {"op": "names"}                               -> {"names": FEATURE_NAMES}
+//   {"op": "weights"}                             -> {"weights": PRIOR_WEIGHTS}
 // Lo stato è serialize.search_state_to_dict.
+//
+//   node hexpush/jsserver.mjs [motore]
+// motore: un'altra copia di mcts.js (per esempio quella di un commit precedente, per
+// confrontare due versioni della policy); di default quella del sito.
 
 import { createInterface } from "node:readline";
-import { FEATURE_NAMES, FastBoard, moveFeatures, search } from "../web/play/static/play/mcts.js";
+import { pathToFileURL } from "node:url";
+
+const { FEATURE_NAMES, FastBoard, PRIOR_WEIGHTS, moveFeatures, search } = await import(
+  process.argv[2] ? pathToFileURL(process.argv[2]).href : "../web/play/static/play/mcts.js");
 
 function features(state) {
   const fb = new FastBoard(state);
@@ -31,6 +39,7 @@ for await (const line of rl) {
       out.ms = performance.now() - t0;
     } else if (req.op === "features") out = features(req.state);
     else if (req.op === "names") out = { names: FEATURE_NAMES };
+    else if (req.op === "weights") out = { weights: Array.from(PRIOR_WEIGHTS) };
     else out = { error: `operazione sconosciuta: ${req.op}` };
   } catch (e) {
     out = { error: String((e && e.stack) || e) };
