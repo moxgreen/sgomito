@@ -215,12 +215,14 @@ def canonical(moves):
 
 
 def first_move_name(m, R):
-    """Nome della prima mossa di A (una pedina della fila di casa)."""
+    """Nome della prima mossa di A (una pedina della fila di casa): posizione contata dal
+    bordo, e direzione rispetto all'asse centrale."""
     x = lateral((m[0], m[1]))
     dx = DIRS[m[2]][0] + DIRS[m[2]][1] / 2
-    place = {0: "centrale", 1: "interna", 2: "esterna"}.get(round(abs(x)), f"x={x:+.0f}")
     if x == 0:
-        return f"pedina {place}"
+        return "pedina centrale"
+    k = round(R / 2 - abs(x))  # 0 = la pedina sul bordo
+    place = ("esterna", "seconda", "terza")[k] if k < 3 else f"{k + 1}a dal bordo"
     return f"pedina {place} {'verso il centro' if dx * x < 0 else 'verso il bordo'}"
 
 

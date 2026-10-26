@@ -111,6 +111,7 @@ def rules_from_args(args):
     return Ruleset(R=args.R, N=args.N, K=args.K, goal_wide=args.goal_wide,
                    push_own=not args.no_push_own, ko=args.ko, no_pushback=not args.pushback,
                    push_off=args.push_off, moves_per_turn=args.moves_per_turn,
+                   first_turn_moves=args.first_turn_moves,
                    max_plies=args.max_plies)
 
 
@@ -129,6 +130,8 @@ def add_rules_args(ap):
                     help="spingere fuori dal campo una pedina avversaria la elimina")
     ap.add_argument("--moves-per-turn", type=int, default=d.moves_per_turn,
                     help="2: due mosse per turno con pedine diverse (A apre con una sola)")
+    ap.add_argument("--first-turn-moves", type=int, default=d.first_turn_moves,
+                    help="mosse del primo turno di A (con --moves-per-turn 2)")
     ap.add_argument("--max-plies", type=int, default=d.max_plies)
 
 

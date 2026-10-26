@@ -13,6 +13,8 @@ class Ruleset:
     no_pushback: bool = True  # vietato rifare al contrario una spinta subita nell'ultimo turno
     push_off: bool = False    # si può spingere fuori dal campo una pedina avversaria: è eliminata
     moves_per_turn: int = 1   # 2: due mosse per turno con pedine diverse (A apre con una sola)
+    first_turn_moves: int = 1 # mosse del primo turno di A (con moves_per_turn=2: 1 compensa
+                              # il vantaggio di muovere per primo, 2 non compensa)
     max_plies: int = 200      # oltre questo numero di semimosse la partita è patta
 
     def __post_init__(self):
@@ -26,5 +28,8 @@ class Ruleset:
             raise ValueError(f"K deve stare tra 1 e N={self.N}, non {self.K}")
         if self.moves_per_turn not in (1, 2):
             raise ValueError(f"moves_per_turn deve essere 1 o 2, non {self.moves_per_turn}")
+        if not 1 <= self.first_turn_moves <= self.moves_per_turn:
+            raise ValueError(f"first_turn_moves deve stare tra 1 e moves_per_turn="
+                             f"{self.moves_per_turn}, non {self.first_turn_moves}")
         if self.max_plies < 1:
             raise ValueError(f"max_plies deve essere >= 1, non {self.max_plies}")

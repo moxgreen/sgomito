@@ -27,8 +27,8 @@ RES = ROOT / "results"
 LEVELS = [("mctsd16000", "MCTS 16,000"), ("mctsd2000", "MCTS 2,000"), ("mctsd250", "MCTS 250"),
           ("greedy", "Greedy"), ("random", "Random")]
 MOVE_EN = {"pedina centrale": "Centre piece forward",
-           "pedina interna verso il centro": "Inner piece, toward the centre",
-           "pedina interna verso il bordo": "Inner piece, toward the edge",
+           "pedina seconda verso il centro": "Inner piece, toward the centre",
+           "pedina seconda verso il bordo": "Inner piece, toward the edge",
            "pedina esterna verso il centro": "Outer piece, toward the centre",
            "pedina esterna verso il bordo": "Outer piece, toward the edge"}
 

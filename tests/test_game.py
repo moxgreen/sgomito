@@ -190,6 +190,16 @@ class TestTwoMoves(unittest.TestCase):
         self.assertEqual(t.moves_left, 2)
         self.assertIsNone(t.locked)
 
+    def test_opening_two_moves(self):
+        s = new_game(Ruleset(moves_per_turn=2, first_turn_moves=2))
+        self.assertEqual(s.moves_left, 2)
+        t = apply(s, legal_moves(s)[0])
+        self.assertEqual((t.to_move, t.moves_left), ("A", 1))
+        t = apply(t, legal_moves(t)[0])
+        self.assertEqual((t.to_move, t.moves_left), ("B", 2))
+        with self.assertRaises(ValueError):
+            Ruleset(first_turn_moves=2)  # con una mossa per turno non ha senso
+
     def test_two_moves_different_pieces(self):
         s = from_board(self.R2, board_of(A=[(0, 0), (-2, 1)], B=[(2, -2)]))
         t = apply(s, Move(0, 0, E, False))

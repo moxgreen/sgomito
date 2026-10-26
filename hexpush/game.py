@@ -112,9 +112,11 @@ def from_board(rules, board, to_move="A", ply=0, moves_left=None):
 
 
 def new_game(rules=None):
-    """Posizione iniziale. Con 2 mosse per turno A apre con una mossa sola."""
+    """Posizione iniziale. Il primo turno di A ha rules.first_turn_moves mosse (con 2 mosse
+    per turno, di default una sola)."""
     rules = rules or Ruleset()
-    return from_board(rules, initial_board(rules.R, rules.N), "A", moves_left=1)
+    return from_board(rules, initial_board(rules.R, rules.N), "A",
+                      moves_left=rules.first_turn_moves)
 
 
 def _moved_board(state, move):

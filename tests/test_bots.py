@@ -92,6 +92,8 @@ class TestFastBoard(unittest.TestCase):
                    Ruleset(R=3, N=3, push_off=True, max_plies=60),
                    Ruleset(R=3, N=2, moves_per_turn=2, max_plies=60),
                    Ruleset(R=3, N=3, moves_per_turn=2, ko=True, max_plies=60),
+                   Ruleset(R=3, N=3, moves_per_turn=2, first_turn_moves=2, ko=True,
+                           max_plies=60),
                    # con no_pushback ripetizioni ed eliminazioni sono rare: campo minimo
                    # e una pedina a testa, così escono anche quelle
                    Ruleset(R=2, N=1, push_off=True, max_plies=60)]

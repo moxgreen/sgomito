@@ -1,0 +1,139 @@
+<title>A Bigger Board for Spinta</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&display=swap">
+<style>
+{{STYLE}}
+</style>
+{{DEFS}}
+<article>
+<header>
+  <div class="kicker"><span class="dot a"></span><span class="dot b"></span>How to tell if a game is fun, with simulations · Part 3</div>
+  <h1>Does a bigger board make a more varied game?</h1>
+  <p class="dek">On the standard board, Spinta turned out deep and varied, except for one recurring way of winning. We grew the board from 61 to 91 cells and the armies from five pieces to six, and ran the whole study again.</p>
+</header>
+
+<p><a href="{{PART2}}">Part 2</a> asked whether a deep game has to be a varied one. On Spinta’s standard board, a hexagon with five cells per side, the answer from a few thousand robot games was mostly yes. There was no best opening: all first moves were worth the same, and games diverged within a handful of moves. The spread of playing behaviour grew as the robots got stronger. One thing kept coming back, though. Won games tended to share a theme, which we called <em>spear and wall</em>: one piece breaks through while the others hold the home row, and the game ends with a double threat that the defender cannot parry.</p>
+
+<p>A game designer’s natural reflex is to reach for a knob. The most obvious one is the size of the board. A bigger board has more room, longer distances and more pieces, so it seems likely to change how games unfold. This article turns that knob and repeats every measurement.</p>
+
+<h2>The bigger board</h2>
+
+<figure>
+<div class="figrow">
+<div>{{BOARD_SMALL}}<div class="sub">Standard: 5 cells per side, 61 cells, 5 pieces each</div></div>
+<div>{{BOARD_BIG}}<div class="sub">Bigger: 6 cells per side, 91 cells, 6 pieces each</div></div>
+</div>
+<figcaption>The two starting positions at the same scale. In both, the pieces fill the home row exactly.</figcaption>
+</figure>
+
+<p>The rules are unchanged: two moves per turn with different pieces (one move on the first player’s first turn), pushes of one piece at a time, the ko and no-pushback rules, and victory as soon as a piece reaches the opponent’s home row. The bigger board changes three things:</p>
+
+<ul>
+  <li><strong>Distance.</strong> A piece must travel 10 rows instead of 8 to reach the goal.</li>
+  <li><strong>Width.</strong> The middle row has 11 cells instead of 9, so there are more lanes to attack along and more ground to cover in defence.</li>
+  <li><strong>Size of the game.</strong> 91 cells and 12 pieces instead of 61 and 10. A typical turn offers roughly 1.4 times as many choices per move.</li>
+</ul>
+
+<p>Before looking, it is worth writing down what we expect. Longer distances give the defender more time to react, so breakthroughs should be harder and games should more often turn into scrums. More room should mean more possible plans. If either guess is right, the spear-and-wall theme should lose ground.</p>
+
+<h2>Same robots, harder job</h2>
+
+<p>First, a check that the bigger game is still deep, using the doubling test from <a href="{{PART1}}">Part 1</a>: the search bot plays a copy of itself with twice the thinking time, from 100 to 12,800 simulations per move, 200 games per pairing.</p>
+
+<figure>
+{{LADDER_CHART}}
+<figcaption>Elo gained at each doubling of the simulations, on the two boards. Each point is 200 games; the bars are 95% intervals for the bigger board.</figcaption>
+</figure>
+
+<p>The curve is just as flat: between about 100 and 180 Elo per doubling, about {{BIG_TOTAL}} Elo over the seven doublings against {{SMALL_TOTAL}} on the standard board. Draws are still practically absent. By this measure the bigger game is at least as deep as the standard one.</p>
+
+<p>The controls tell a more interesting story. On the bigger board the same search budget buys a weaker player. With 2,000 simulations the bot beats Greedy, the one-move bot driven by a hand-written formula, only 59.5% of the time, against 83.5% on the standard board, and it beats the single-runner Rusher 71% of the time instead of 90%. {{ANCHOR_TEXT}}</p>
+
+<p>The reason is the random playouts at the heart of the search. On the bigger board a random game is long and aimless: 85% of games between two random players reach the 200-move limit without a winner, against 45% on the standard board. A playout that ends in a draw tells the search nothing about who was better. The bot also commits less: in the middle game (half-moves 15 to 30) the strongest bot puts more than half its visits on one move only 19% of the time, against 47% on the standard board.</p>
+
+<p>This matters for everything that follows. Comparing the two boards at the same number of simulations is not comparing them at the same level of skill. Where it makes a difference, we also compare the bigger board’s strongest bot with the standard board’s middle one.</p>
+
+<h2>The experiment</h2>
+
+<p>We collected the same five sets of games as in Part 2, now on the bigger board: the search bot at 250, 2,000 and 16,000 simulations per move playing itself, plus Greedy and random play as references.</p>
+
+{{CORPUS_TABLE}}
+
+<p>Games are longer, by about a third at the top level. And the second player’s edge that worried us on the standard board has disappeared: at 16,000 simulations the first player wins 50% of the games.</p>
+
+<h2>Openings: still no best first move</h2>
+
+<p>With six pieces on the home row there is no centre piece, and up to mirror symmetry the first player has six possible first moves: each of the three pieces on one half of the row steps forward, either toward the centre or toward the edge.</p>
+
+{{FIRST_MOVES}}
+
+<p>The deep search (eight independent searches of 400,000 simulations for each position) values all six first moves between 0.501 and 0.502, and all of the second player’s replies between 0.497 and 0.500. The strongest bot plays each of them between 14% and 20% of the time. As on the standard board, the choice of first move does not matter.</p>
+
+<figure>
+{{OPENINGS_CHART}}
+<figcaption>Effective number of distinct openings of a given length: the reciprocal of the probability that two random games share their first k half-moves, after merging mirror images. Logarithmic scale.</figcaption>
+</figure>
+
+<p>The bigger board opens up more. The strongest bot has about {{EFF3_BIG}} effective three-move openings, against {{EFF3_SMALL}} on the standard board, and about {{EFF4_BIG}} four-move openings against {{EFF4_SMALL}}. Part of this is simply the larger number of options, and part is that on the bigger board the bot is further from perfect play, so the narrowing toward best lines is weaker.</p>
+
+<h2>Plans: the same three styles</h2>
+
+<p>We described every player in every game by the same fifteen numbers used in Part 2: how many pieces it uses, how much it keeps at home, how much it pushes, how far forward it plays, and so on. All of them are normalised by the size of the board, so they can be compared. Then we ran the clustering on the games of the strongest bots of <em>both</em> boards together, so that the two boards are described by one common set of styles.</p>
+
+<p>The same three styles came out as in Part 2, again as soft tendencies rather than sharp groups (silhouette 0.22). And they win at almost the same rates on both boards. What changes is how often each one appears.</p>
+
+<figure class="wide">
+{{STYLES_CHART}}
+<figcaption>Share of player-games in each style, for the strongest bots on each board (clustering run on both boards together). Win rates of each style are in the text.</figcaption>
+</figure>
+
+<ul>
+  <li><strong>Spear and wall</strong> wins {{SPEAR_WIN_SMALL}} of the time on the standard board and {{SPEAR_WIN_BIG}} on the bigger one. It describes {{SPEAR_SMALL}} of player-games on the standard board and {{SPEAR_BIG}} on the bigger one.</li>
+  <li><strong>Scrum</strong> wins about 46% on both boards. It drops from {{SCRUM_SMALL}} to {{SCRUM_BIG}} of player-games.</li>
+  <li><strong>Under siege</strong>, the trace left by a player who has lost control, wins about 6% on both boards and covers {{SIEGE_SMALL}} and {{SIEGE_BIG}}.</li>
+</ul>
+
+<p>So the prediction was wrong in an instructive way. A longer road to the goal did not make breakthroughs rarer. It made the spear-and-wall pattern <em>more</em> common. One reading: on a wider board each defender covers less of the front, and a home row of six cells with six pieces leaves each piece more critical, so the side that commits fewer pieces to the attack and keeps the wall intact has the advantage. When the two main styles meet, spear and wall wins {{SPEAR_VS_SCRUM_BIG}} of games on the bigger board ({{SPEAR_VS_SCRUM_SMALL}} on the standard one).</p>
+
+<p>As in Part 2, the styles are visible mostly in hindsight. Over the first 16 half-moves the eventual winner and loser look alike. The largest early differences are that the winner has moved fewer different pieces and has used a few more relay pushes (one piece pushing a friendly piece forward), each about half a standard deviation, and neither predicts the winner in more than about 60% of games.</p>
+
+<figure>
+{{SPEAR_BOARD}}
+<figcaption>Spear and wall on the bigger board, in a game between two 16,000-simulation bots. Indigo (moving down) has one attacker one row from amber’s home row, with both cells in front of it free, while its other five pieces are still at or next to home. Amber cannot cover both cells and lost on the next turn, after 34 half-moves.</figcaption>
+</figure>
+
+<h2>Endings: even more alike</h2>
+
+{{ENDINGS_TABLE}}
+
+<p>The double threat decides even more games on the bigger board: about 78% at every level, against 67% for the strongest bot on the standard board. The rarer finishes that grew with strength on the standard board, relays and wins built within the final turn, are less frequent here. This matches the strength comparison above: the bigger board’s strongest bot finishes games much like the standard board’s middle bot does.</p>
+
+<h2>Variety and strength</h2>
+
+<figure>
+{{DISPERSION_CHART}}
+<figcaption>Spread of playing behaviour (average variance of the fifteen standardised style numbers) at each level on the bigger board, for all players and for winners only. Each board is standardised on its own three search levels, as in Part 2.</figcaption>
+</figure>
+
+<p>The trend from Part 2 holds: stronger bots behave more variously. On the bigger board the spread rises from {{DISP_250}} at 250 simulations to {{DISP_2000}} at 2,000 and {{DISP_16000}} at 16,000 (on the standard board: 0.74, 0.87, 0.90). Weak bots on a big board are especially uniform, and the gain from thinking more is correspondingly larger.</p>
+
+<h2>Verdict</h2>
+
+<p>Turning the size knob changed less than we expected.</p>
+
+<ul>
+  <li><strong>What changed:</strong> games are about a third longer; there are more distinct openings; the second player’s edge disappeared; and robots need much more computation to play well, which is a hint that people will also find the bigger board harder.</li>
+  <li><strong>What did not change:</strong> the game is just as deep by the doubling test; there is still no best opening; the same three styles appear with the same win rates; and the winning theme, spear and wall finished by a double threat, became more dominant rather than less.</li>
+</ul>
+
+<p>For the question running through this series, this is useful negative knowledge. The recurring theme is not a side effect of a cramped board. It seems to come from the core of the rules: a home row that cannot be pushed out is a perfect wall, and a single piece one step from that wall threatens two cells at once. If we want more variety in how games are won, the knobs to try are the ones that touch those two facts, such as widening the goal (<code>goal_wide</code>), requiring two pieces to cross (<code>K=2</code>), or making the home row less safe. Board size, on its own, mostly makes the same game longer.</p>
+
+<div class="note">
+  <div class="note-title">Limits of this comparison</div>
+  <p>The bigger board was played by bots that are relatively weaker on it, so some differences between the boards reflect skill rather than geometry. We matched levels where we could, but the match is approximate. The other caveats of Part 2 apply unchanged: search noise inflates variety a little, the fifteen style numbers are our choice, and the clusters are weak.</p>
+</div>
+
+<footer>Data on the bigger board (radius 5, six pieces each, two moves per turn, ko and no-pushback): 320 games at 16,000 simulations per move, 400 each at 2,000 and 250, 400 Greedy and 400 random games; doubling test with 200 games per pairing; opening values from eight searches of 400,000 simulations per position. Standard-board figures are those of Part 2.</footer>
+</article>
