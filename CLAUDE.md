@@ -308,9 +308,36 @@ uniformemente.
    nuove provate (minacce a due passi, muro, pedina più avanzata) non valgono il loro
    costo: il maestro più forte e le coppie contano di più.
 
-Articoli (per appassionati, in inglese): `docs/articles/bots.html` (bot e profondità
-statistica, https://claude.ai/artifact/GVAUBRCEUCGpa84nNeSt4E) e `docs/articles/variety.html`
-(profondità e varietà, https://claude.ai/artifact/XyECex874wGPwE3hBk5ssx).
+10. **Campo più grande: R=5, N=6** (91 celle, `ko`, `no_pushback`, due mosse per turno;
+   `results/ladder_r5n6_*`, `results/corpus_r5_*`, `results/strategie_r5*`,
+   `results/strategie_r4r5_16000_*`, `results/aperture_r5n6.txt`):
+   - Curva a raddoppi (200 partite per incontro, fino a 12800): Elo per raddoppio 104 /
+     143 / 177 / 104 / 111 / 96 / 133, piatta, ~870 Elo in totale; patte 1 su 1400. La
+     quota di visite della mossa scelta è più bassa che a R=4 (9% a 200, 29% a 12800).
+     MCTS(2000) contro Greedy solo 59.5% (83.5% a R=4) e contro Rusher 71% (89.5%);
+     Turtle e PingPong 100%. A parità di simulazioni il bot vede meno lontano.
+   - **Il vantaggio di B sparisce**: A vince 51.0% / 49.0% / 50.3% con MCTS 250 / 2000 /
+     16000 (a R=4 era 42.5% a 16000). Partite più lunghe (68 semimosse a 16000 contro 55),
+     spinte 33% delle mosse (37%). Random contro Random: 85% patte per limite.
+   - Aperture: le 6 prime mosse di A (a meno della simmetria) valgono tutte 0.501-0.502
+     (8 x 400k simulazioni), le risposte di B 0.498-0.499; MCTS(16000) le usa tutte (13-20%).
+     Aperture effettive a k=3: 243 contro 151 a R=4; tutte le partite diverse già alla
+     5a semimossa (alla 17a a R=4). Il bot è meno convinto in apertura (quota 11-13%
+     contro 20-21%).
+   - Stili (k-means comune R=4 e R=5 a 16000, silhouette 0.22): gli stessi tre. "Una
+     pedina fa quasi tutto" (vince 70%) sale dal 28% al 45% delle partite, "corpo a corpo"
+     (vince 46%) scende dal 62% al 41%, "schieramento compatto" (vince 6%) 10% → 14%.
+     Dispersione 0.93 (0.99 a R=4).
+   - Finali: la doppia minaccia pesa ancora di più. All'inizio dell'ultimo turno il
+     vincitore ha 2 vittorie immediate nel 69% delle partite (52% a R=4).
+   - Bozza dell'articolo: `docs/articles/src/bigger.tmpl.html` (testo scritto, manca lo
+     script che lo genera; non pubblicato).
+
+Articoli (per appassionati): `docs/articles/bots.html` (in inglese, bot e profondità
+statistica, https://claude.ai/artifact/GVAUBRCEUCGpa84nNeSt4E), `docs/articles/variety.html`
+(in inglese, profondità e varietà, https://claude.ai/artifact/XyECex874wGPwE3hBk5ssx) e
+"Bot Monte Carlo (MCTS) nel gioco di spinta" (in italiano,
+https://claude.ai/artifact/JKGgALFcP9ohSC6CQ1SRxk). Elenco anche in `README.md`.
 
 Candidato attuale: **v1 + `ko` + `no_pushback` + `moves_per_turn=2`** (regole del sito web,
 `no_pushback` ora è il default del `Ruleset`). Secondo il protocollo si può passare agli
