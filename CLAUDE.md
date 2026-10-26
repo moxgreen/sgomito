@@ -295,6 +295,11 @@ uniformemente.
    55% / 51% (4-5 raddoppi). Costo ~1.2-1.4x per simulazione. Verifica indipendente
    (altro driver, altri seed, 100 partite): 500 guidato contro 2000 puro 78%, 2000 contro
    8000 74%, 2000 contro 16000 59%.
+   **Prior v2** (ora nel sito; `results/policy_v2/riassunto.txt`): corpus dalla ricerca
+   guidata (maestro più forte) e pesi anche per le coppie di feature. Contro il v1 a
+   parità di simulazioni 78.5% / 75.2% a 500 / 2000 (verifica indipendente 78% / 72%),
+   costo 1.08x; 2000 guidate v2 contro 64000 pure 60.6%. Le feature più ricche da sole non
+   servono (51% / 47.5%).
    **Seconda versione** (installata, `results/policy_v2/`): maestro = ricerca guidata
    dalla prima policy (un giro di expert iteration) e un peso per ogni coppia di feature.
    Contro la prima policy alle stesse simulazioni: 78.5% a 500, 75% a 2000 (+225 / +193

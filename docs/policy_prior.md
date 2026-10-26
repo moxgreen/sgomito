@@ -234,6 +234,17 @@ controllano il `ko` solo sulle spinte: è un difetto dei motori veloci, non del 
 correggere a parte. Quella partita è esclusa (serie rigiocata con un adattatore di
 `match_game` che salta le partite interrotte; in `results/policy_v2_match_2000_*`).
 
+## Prior v2 (nel sito dal 26 ottobre 2026)
+
+`results/policy_v2/riassunto.txt`: sei varianti contro il prior v1, 200 partite per riga.
+Vince "guidato_coppie": corpus di 100 partite giocate dalla ricerca **guidata** dal v1 a
+20000 simulazioni (`results/policy_weights_jsp20000.json`) e pesi anche per le coppie di
+feature (`priorWeights` in `mcts.js`). Contro il v1 a parità di simulazioni: 78.5% a 500,
+75.2% a 2000 (+225 / +193 Elo), costo per simulazione 1.08x. Verifica indipendente (altro
+driver, altri seed, 100 partite): 78% e 72%. Contro la ricerca pura: 2000 guidate valgono
+più di 32000 pure (79%) e vincono ancora 60.6% contro 64000. Le feature più ricche senza
+il maestro guidato non servono (51% / 47.5%); con le coppie aggiungono poco e costano 1.45x.
+
 ## Cosa non è stato fatto
 
 - I pesi valgono per le regole del sito (R = 4, N = 5, due mosse per turno, `ko`,
