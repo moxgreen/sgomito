@@ -298,7 +298,8 @@ uniformemente.
    **Seconda versione** (installata, `results/policy_v2/`): maestro = ricerca guidata
    dalla prima policy (un giro di expert iteration) e un peso per ogni coppia di feature.
    Contro la prima policy alle stesse simulazioni: 78.5% a 500, 75% a 2000 (+225 / +193
-   Elo), costo per simulazione 1.08x. Guidato 500 contro puro 16000: 67%. Le 10 feature
+   Elo), costo per simulazione 1.08x. Guidato 500 contro puro 16000: 67%; guidato 2000
+   contro puro 32000 / 64000: 79% / 61% (5 raddoppi). Le 10 feature
    nuove provate (minacce a due passi, muro, pedina più avanzata) non valgono il loro
    costo: il maestro più forte e le coppie contano di più.
 

@@ -1,0 +1,21 @@
+[   161 s] 20
+ERRORE {'errore': 'mossa illegale', 'seed': '0-jsp:2000-js:64000-33', 'livello_forte': 'jsp:2000', 'livello_debole': 'js:64000'}
+[   335 s] 40
+[   524 s] 60
+[   672 s] 80
+[   810 s] 100
+[   897 s] 120
+[   998 s] 140
+[  1079 s] 160
+[  1153 s] 180
+[  1232 s] 200
+[  1284 s] 220
+[  1332 s] 240
+[  1385 s] 260
+[  1429 s] 280
+Ruleset(R=4, N=5, K=1, goal_wide=False, push_own=True, ko=True, no_pushback=True, push_off=False, moves_per_turn=2, max_plies=200)
+
+   guidato     contro    n    V    S    P   punti    Elo        IC 95% semim. us/sim g. us/sim c. costo
+  jsp:2000   js:16000  100   77   23    0   77.0%   +210   +137.. +305   48.5      63.7      43.4  1.52
+  jsp:2000   js:32000  100   79   21    0   79.0%   +230   +156.. +330   52.3      57.0      38.0  1.47
+  jsp:2000   js:64000   99   60   39    0   60.6%    +75     +7.. +149   53.4      55.7      37.2  1.51

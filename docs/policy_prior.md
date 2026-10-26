@@ -216,11 +216,23 @@ Contro la ricerca pura (100 partite per riga, `results/policy_v2_match_*`):
 | 500     | 4000  | 80.0%             | +241 | +165..+344  | 63.0%          | 1.44      |
 | 500     | 8000  | 72.0%             | +164 | +94..+250   | 36.0%          | 1.51      |
 | 500     | 16000 | 67.0%             | +123 | +55..+202   | —              | 1.48      |
+| 2000    | 16000 | 77.0%             | +210 | +137..+305  | 55.0%          | 1.52      |
+| 2000    | 32000 | 79.0%             | +230 | +156..+330  | 51.0%          | 1.47      |
+| 2000    | 64000 | 60.6% (99)        | +75  | +7..+149    | —              | 1.51      |
 
-**La seconda policy a 500 simulazioni batte la ricerca pura a 16000** (×32, 5
-raddoppi), dove la prima pareggiava a ~5600 (2.5 raddoppi). Il costo per simulazione
-rispetto alla pura è ~1.45 (la prima: ~1.3-1.4 nelle sue serie, con un altro carico
-della macchina; nelle stesse partite il rapporto tra le due policy è 1.08).
+**La seconda policy batte la ricerca pura con 32 volte le simulazioni** (5 raddoppi):
+a 500 contro 16000 e a 2000 contro 64000, dove la prima pareggiava a ~5600 (2.5
+raddoppi) e a ~32000. Il costo per simulazione rispetto alla pura è ~1.5 (la prima:
+~1.3-1.5 nelle sue serie, con un altro carico della macchina; nelle stesse partite il
+rapporto tra le due policy è 1.08).
+
+Una partita della serie contro 64000 si è interrotta: la ricerca pura di `mcts.js` ha
+scelto una mossa che `game.py` vieta per `ko` (seconda mossa del turno, uno spostamento
+semplice che dopo una spinta ricrea la posizione d'inizio del turno avversario
+precedente). `FastBoard.isLegal` di `mcts.js`, e `is_legal` di `hexpush/mcts.py`,
+controllano il `ko` solo sulle spinte: è un difetto dei motori veloci, non del prior, da
+correggere a parte. Quella partita è esclusa (serie rigiocata con un adattatore di
+`match_game` che salta le partite interrotte; in `results/policy_v2_match_2000_*`).
 
 ## Cosa non è stato fatto
 
