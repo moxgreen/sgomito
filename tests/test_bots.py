@@ -19,6 +19,19 @@ CONFIGS = [Ruleset(), Ruleset(R=3, N=3, K=2), Ruleset(R=5, N=8, goal_wide=True),
            Ruleset(R=3, N=3, moves_per_turn=2, no_pushback=True, push_off=True)]
 
 
+def ko_simple_move_position():
+    """Ko chiuso da una mossa semplice (trovato in una partita a 64000 simulazioni): B
+    spinge (1,-3) in (2,-3) e porta un'altra pedina in (0,-3); A rispinge (1,-3) in (0,-2)
+    con la pedina di (2,-4) e riporta (2,-3) in (2,-4), ricreando l'inizio del turno di B.
+    Restituisce lo stato iniziale, le tre mosse che portano lì e la mossa vietata."""
+    rules = Ruleset(ko=True, no_pushback=True, moves_per_turn=2)
+    board = {(0, -4): "A", (1, -4): "A", (2, -4): "A", (1, -3): "A", (-3, 2): "A",
+             (-1, -3): "B", (0, -3): "B", (0, -2): "B", (-2, 3): "B", (-4, 4): "B"}
+    start = from_board(rules, board, "B", ply=53)
+    script = [Move(0, -3, 0, True), Move(0, -2, 3, False), Move(2, -4, 5, True)]
+    return start, script, Move(2, -3, 3, False)
+
+
 def as_moves(fb):
     cells = fb.geo.cells
     return {Move(*cells[src], d, kind >= 2) for src, d, kind in fb.moves()}
@@ -56,6 +69,18 @@ class TestFastBoard(unittest.TestCase):
                     # anche ricostruendo da zero (ko compreso) si ottiene lo stesso
                     if s.result is None:
                         self.assertEqual(as_moves(FastBoard(s)), set(legal_moves(s)) - {PASS})
+
+    def test_ko_closed_by_simple_move(self):
+        s, script, banned = ko_simple_move_position()
+        fb = FastBoard(s)
+        for move in script:
+            self.assertIn(move, legal_moves(s))
+            s = apply(s, move)
+            fb.play(fb.geo.index[(move.q, move.r)], move.d, 2 if move.push else 1)
+        self.assertNotIn(banned, legal_moves(s))
+        # ricostruito dallo stato e arrivandoci giocando (ko_hash incrementale)
+        self.assertEqual(as_moves(FastBoard(s)), set(legal_moves(s)))
+        self.assertEqual(as_moves(fb), set(legal_moves(s)))
 
     def test_playout_ends(self):
         rng = random.Random(3)

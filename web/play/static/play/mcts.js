@@ -203,22 +203,30 @@ export class FastBoard {
     const t = g.nbr[src][d];
     if (t < 0) return 0;
     const o = this.board[t];
-    if (o === 0) return 1;
-    if (o === this.toMove && !this.rules.push_own) return 0;
-    const t2 = g.nbr[t][d];
-    if (t2 < 0) return this.rules.push_off && o !== this.toMove ? 3 : 0;
-    if (this.board[t2]) return 0;
-    if (this.banned.length && o !== this.toMove && this.banned.includes(src * 6 + d)) return 0;
+    let t2 = -1;
+    if (o !== 0) {
+      if (o === this.toMove && !this.rules.push_own) return 0;
+      t2 = g.nbr[t][d];
+      if (t2 < 0) return this.rules.push_off && o !== this.toMove ? 3 : 0;
+      if (this.board[t2]) return 0;
+      if (this.banned.length && o !== this.toMove && this.banned.includes(src * 6 + d)) return 0;
+    }
     if (this.koKey !== null && this.movesLeft === 1) {
-      // hash della posizione d'inizio del turno avversario che questa mossa creerebbe
+      // hash della posizione d'inizio del turno avversario che questa mossa creerebbe;
+      // anche una mossa semplice: con due mosse per turno può chiudere una spinta
+      // che rimette il campo com'era (spinta indietro con un'altra pedina + ritorno)
       const p = this.toMove;
-      let h = this.hh ^ g.zh[p][src] ^ g.zh[p][t] ^ g.zh[o][t] ^ g.zh[o][t2] ^ g.sideH;
-      let l = this.hl ^ g.zl[p][src] ^ g.zl[p][t] ^ g.zl[o][t] ^ g.zl[o][t2] ^ g.sideL;
+      let h = this.hh ^ g.zh[p][src] ^ g.zh[p][t] ^ g.sideH;
+      let l = this.hl ^ g.zl[p][src] ^ g.zl[p][t] ^ g.sideL;
+      if (o !== 0) {
+        h ^= g.zh[o][t] ^ g.zh[o][t2];
+        l ^= g.zl[o][t] ^ g.zl[o][t2];
+      }
       if (this.locked >= 0) { h ^= g.lockH[this.locked]; l ^= g.lockL[this.locked]; }
       if (this.rules.moves_per_turn === 2) { h ^= g.twoH; l ^= g.twoL; }
       if (combine(h, l) === this.koKey) return 0;
     }
-    return 2;
+    return o !== 0 ? 2 : 1;
   }
 
   /** Lista di [cella, direzione, tipo] legali. */

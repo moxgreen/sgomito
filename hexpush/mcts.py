@@ -137,29 +137,33 @@ class FastBoard:
         if t < 0:
             return 0
         o = self.board[t]
-        if o == 0:
-            return 1
-        if o == self.to_move and not self.rules.push_own:
-            return 0
-        t2 = self.geo.nbr[t][d]
-        if t2 < 0:
-            return 3 if self.rules.push_off and o != self.to_move else 0
-        if self.board[t2]:
-            return 0
-        if self.banned and src * 6 + d in self.banned and o != self.to_move:
-            return 0
+        if o:
+            if o == self.to_move and not self.rules.push_own:
+                return 0
+            t2 = self.geo.nbr[t][d]
+            if t2 < 0:
+                return 3 if self.rules.push_off and o != self.to_move else 0
+            if self.board[t2]:
+                return 0
+            if self.banned and src * 6 + d in self.banned and o != self.to_move:
+                return 0
         if self.ko_hash is not None and self.moves_left == 1:
-            # hash della posizione d'inizio del turno avversario che questa mossa creerebbe
+            # hash della posizione d'inizio del turno avversario che questa mossa creerebbe;
+            # anche una mossa semplice: con due mosse per turno può chiudere una spinta
+            # che rimette il campo com'era (spinta indietro con un'altra pedina + ritorno)
             g = self.geo
-            zp, zo = g.zobrist[self.to_move], g.zobrist[o]
-            h = self.hash ^ zp[src] ^ zp[t] ^ zo[t] ^ zo[t2] ^ g.z_side
+            zp = g.zobrist[self.to_move]
+            h = self.hash ^ zp[src] ^ zp[t] ^ g.z_side
+            if o:
+                zo = g.zobrist[o]
+                h ^= zo[t] ^ zo[t2]
             if self.locked >= 0:
                 h ^= g.z_lock[self.locked]
             if self.rules.moves_per_turn == 2:
                 h ^= g.z_two
             if h == self.ko_hash:
                 return 0
-        return 2
+        return 2 if o else 1
 
     def moves(self):
         """Lista di (cella, direzione, tipo) legali; usata dai test e come ripiego."""

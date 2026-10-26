@@ -22,7 +22,7 @@ from hexpush.policy import dense_weights
 from hexpush.rules import Ruleset
 from hexpush.serialize import cell_list, key_to_list, search_state_to_dict
 
-from .test_bots import CONFIGS
+from .test_bots import CONFIGS, ko_simple_move_position
 
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "tests" / "js" / "check_engine.mjs"
@@ -61,14 +61,16 @@ def mv(m):
     return [m.q, m.r, m.d]
 
 
-def game_case(rules, rng, label, snapshot_every=9):
-    """Partita casuale con tutto ciò che il JS deve ritrovare a ogni semimossa."""
-    s = new_game(rules)
+def game_case(rules, rng, label, snapshot_every=9, start=None, script=()):
+    """Partita casuale con tutto ciò che il JS deve ritrovare a ogni semimossa; da `start`
+    (default la posizione iniziale) con le prime mosse prese da `script`."""
+    s = start or new_game(rules)
     case = {"kind": "game", "label": label, "start": search_state_to_dict(s), "steps": []}
     while s.result is None:
         moves = legal_moves(s)
         wins = [m for m, o in zip(moves, immediate_outcomes(s, moves)) if o == 1]
-        move = rng.choice(moves)
+        n = len(case["steps"])
+        move = script[n] if n < len(script) else rng.choice(moves)
         s = apply(s, move)
         board, to_move, locked, moves_left = key_to_list(s.key)
         step = {"legal": [[m.q, m.r, m.d, m.push] for m in moves if m is not PASS],
@@ -108,6 +110,21 @@ class TestJsEngine(unittest.TestCase):
         rng = random.Random(7)
         cases = [game_case(rules, rng, f"{rules} #{i}")
                  for rules in CONFIGS for i in range(6)]
+        self.assert_node_ok(cases)
+
+    def test_ko_closed_by_simple_move(self):
+        """Vedi test_bots.ko_simple_move_position: la mossa semplice che ricrea l'inizio
+        del turno avversario è vietata, giocandoci (ko incrementale) e ricostruendo lo
+        stato; anche la ricerca, che prima la sceglieva, deve evitarla."""
+        start, script, banned = ko_simple_move_position()
+        cases = [game_case(start.rules, random.Random(i), f"ko semplice #{i}", 1, start, script)
+                 for i in range(3)]
+        s = start
+        for move in script:
+            s = apply(s, move)
+        self.assertNotIn(banned, legal_moves(s))
+        cases += [search_case(s, legal_moves(s), "ko semplice", n_sim=2000, seed=seed)
+                  for seed in range(2)]
         self.assert_node_ok(cases)
 
     def test_tree_bookkeeping(self):
